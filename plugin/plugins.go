@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"sn-bot/shared"
+	"github.com/detecc/detecctor/shared"
 )
 
 type Handler interface {

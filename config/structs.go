@@ -7,22 +7,22 @@ type Configuration struct {
 }
 
 type Server struct {
-	Host         string `fig:"host" validate:"required"`
+	Host         string `fig:"host"`
 	Port         int    `fig:"port" default:"7777"`
 	AuthPassword string `fig:"authPassword" validate:"required"`
-	PluginDir    string `fig:"host" validate:"required"`
+	PluginDir    string `fig:"pluginDir" validate:"required"`
 	Plugins      []string
 }
 
 type Telegram struct {
-	BotToken string `fig:"host" validate:"required"`
+	BotToken string `fig:"botToken" validate:"required"`
 }
 
 type Database struct {
 	Scheme   string
 	Host     string `fig:"host" default:"localhost"`
-	Username string `fig:"host" validate:"required"`
-	Password string `fig:"host" validate:"required"`
-	Port     int    `fig:"host" default:"2717"`
-	Database string `fig:"host" default:"sn-bot"`
+	Username string `fig:"username" validate:"required"`
+	Password string `fig:"password" validate:"required"`
+	Port     int    `fig:"port" default:"2717"`
+	Database string `fig:"database" default:"detecctor"`
 }
