@@ -2,15 +2,15 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"github.com/detecc/detecctor/config"
 	"github.com/detecc/detecctor/database"
 	"github.com/detecc/detecctor/shared"
+	"log"
 )
 
 // authorizeClient Try to authorize the client with the authPassword provided in the Payload.Data field
 func (s *server) authorizeClient(clientId string, payload shared.Payload) error {
-	log.Println("authorizing client", clientId, "with node key", payload.ServiceNodeKey)
+	log.Println("Authorizing client", clientId, "with node key", payload.ServiceNodeKey)
 
 	if payload.Data == nil {
 		return fmt.Errorf("no authentication password provided")

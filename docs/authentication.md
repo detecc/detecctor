@@ -2,7 +2,7 @@
 
 ## User authentication
 
-Before you can issue commands to the Detecctor, you must prove you're the owner of the server or that you know the server
+Before you can issue commands to Detecctor, you must prove you're the owner of the server or that you know the server
 owner.
 
 The authentication process is simple:

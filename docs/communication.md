@@ -2,8 +2,8 @@
 
 ## Communication
 
-The server and Client communicate through TCP protocol library, that is similar to WebSockets (two-way communication).
-The server and Telegram API (Bot) communicate through channels.
+Detecctor (the server) and Deteccted (client) communicate through TCP protocol library, that is similar to WebSockets (two-way communication).
+The server component and Telegram API (Bot) communicate through channels.
 
 ### Server-client messages
 
@@ -30,7 +30,7 @@ type Payload struct {
 }
 ```
 
-### Telegram Bot and TCP server communication
+### Telegram Bot and server communication
 
 The communication Server-Telegram Bot occurs on channels through dedicated listeners, that run in a goroutine. The
 message that comes from the Telegram Bot is parsed and sent through the channel as a `Command` struct. The message that
