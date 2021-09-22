@@ -1,7 +1,15 @@
 version: "3.7"
 services:
+  detecctor:
+    build:
+      context: .
+      target: dev
+    ports:
+      - 7777:7777
+    volumes:
+      - ./plugins:/detecctor/plugins
   mongodb:
-    image : mongo
+    image: mongo
     environment:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=pass12345
