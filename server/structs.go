@@ -8,6 +8,12 @@ import (
 	"sync"
 )
 
+const (
+	AuthCommand        = "/auth"
+	SubscribeCommand   = "/sub"
+	UnSubscribeCommand = "/unsub"
+)
+
 // Server TCP/Websockets server.
 // The server handles the incoming messages from the Telegram Bot and executes the command.
 // The command execution is handled by plugins that are loaded in the cache.

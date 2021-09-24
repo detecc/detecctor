@@ -48,9 +48,19 @@ type ServiceNode struct {
 // Chat is the Telegram Chat the Bot is listening to.
 type Chat struct {
 	mgm.DefaultModel `bson:",inline"`
-	ChatId           int64  `json:"chatId" bson:"chatId"`
-	Name             string `json:"name" bson:"name"`
-	IsAuthorized     bool   `json:"isAuthorized" bson:"isAuthorized"`
+	ChatId           int64          `json:"chatId" bson:"chatId"`
+	Name             string         `json:"name" bson:"name"`
+	IsAuthorized     bool           `json:"isAuthorized" bson:"isAuthorized"`
+	Subscriptions    []Subscription `json:"subscriptions" bson:"subscriptions"`
+}
+
+// Subscription is a filter used for subscribing to a client messages.
+// If the chat/user is subscribed to all nodes and all topics, there should only be one entry with both subNode and subCommand values equal to "*".
+// Else, there are separate entries with values, "*" meaning all.
+// Example entry: subNode: "*", subCommand:"/ping" -> meaning subscribe to the /ping command on all nodes.
+type Subscription struct {
+	Node    string `json:"subNode" bson:"subNode"`
+	Command string `json:"subCommand" bson:"subCommand"`
 }
 
 // Message is a Telegram Message that gets logged in the database.

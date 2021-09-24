@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"github.com/Allenxuxu/gev"
 	"github.com/Allenxuxu/gev/connection"
-	cache2 "github.com/patrickmn/go-cache"
-	"log"
 	"github.com/detecc/detecctor/bot"
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/config"
 	"github.com/detecc/detecctor/database"
 	plugin2 "github.com/detecc/detecctor/plugin"
 	"github.com/detecc/detecctor/shared"
+	"log"
 	"sync"
 	"time"
 )
@@ -111,7 +110,7 @@ func (s *server) OnClose(c *connection.Connection) {
 			return
 		}
 		//notify the user(s) the node went down
-		notificationMessage := fmt.Sprintf("Client %s went down at %s", client.ServiceNodeKey, time.Now().Format(time.RFC1123))
+		notificationMessage := fmt.Sprintf("Client %s went offline at %s", client.ServiceNodeKey, time.Now().Format(time.RFC1123))
 		log.Println(notificationMessage)
 		for _, chat := range chats {
 			s.replyToChat(chat.ChatId, notificationMessage, shared.TypeMessage)
@@ -119,6 +118,7 @@ func (s *server) OnClose(c *connection.Connection) {
 	}
 }
 
+// validateCommand check if the chat is authorized to perform a command.
 func (s *server) validateCommand(command bot.Command) error {
 	if !s.isChatAuthorized(command.ChatId) && command.Name != "/auth" {
 		return fmt.Errorf("chat is not authorized")
@@ -138,7 +138,7 @@ func (s *server) handleCommand(command bot.Command) {
 	}
 
 	switch command.Name {
-	case "/auth":
+	case AuthCommand:
 		var token = ""
 
 		if len(command.Args) >= 1 {
@@ -147,22 +147,37 @@ func (s *server) handleCommand(command bot.Command) {
 		message := s.authChat(token, command.ChatId)
 		s.replyToChat(command.ChatId, message, shared.TypeMessage)
 		break
+	case SubscribeCommand, "/subscribe":
+		s.handleSubscription(command)
+		break
+	case UnSubscribeCommand, "/unsubscribe":
+		s.handleUnsubscription(command)
+		break
 	default:
-		//check if the plugin is authorized
-		plugin, err := plugin2.GetPluginManager().GetPlugin(command.Name)
-		if err != nil {
-			log.Println("Plugin with command", command.Name, "doesnt exist")
-			s.replyToChat(command.ChatId, fmt.Sprintf("%s unsupported command", command.Name), shared.TypeMessage)
-			return
-		}
+		s.executePlugin(command)
+		break
+	}
+}
 
-		// invoke the Plugin.Execute method
-		payloads, err := plugin.Execute(command.Args...)
-		if err != nil {
-			log.Println("plugin produced an error:", err)
-			return
-		}
+//executePlugin executes the plugin associated with the command and sends a message to the client(s).
+func (s *server) executePlugin(command bot.Command) {
+	//check if the plugin is authorized
+	plugin, err := plugin2.GetPluginManager().GetPlugin(command.Name)
+	if err != nil {
+		log.Println("Plugin with command", command.Name, "doesnt exist")
+		s.replyToChat(command.ChatId, fmt.Sprintf("%s unsupported command", command.Name), shared.TypeMessage)
+		return
+	}
 
+	// invoke the Plugin.Execute method
+	payloads, err := plugin.Execute(command.Args...)
+	if err != nil {
+		log.Println("plugin produced an error:", err)
+		s.replyToChat(command.ChatId, "command could not be executed.", shared.TypeMessage)
+		return
+	}
+
+	if payloads != nil {
 		// send the payloads to the clients
 		for i, payload := range payloads {
 			generatePayloadId(&payload, command.ChatId)
@@ -174,7 +189,6 @@ func (s *server) handleCommand(command bot.Command) {
 				s.replyToChat(command.ChatId, couldNotSendMessage, shared.TypeMessage)
 			}
 		}
-		break
 	}
 }
 
@@ -190,34 +204,6 @@ func (s *server) replyToChat(chatId int64, content interface{}, contentType int)
 	}
 }
 
-// sendMessage send a message to a client.
-func (s *server) sendMessage(message shared.Payload) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if message.ServiceNodeKey == "" {
-		return fmt.Errorf("ServiceNodeKey is not set")
-	}
-
-	if message.Id == "" {
-		return fmt.Errorf("payload id not set")
-	}
-
-	// find the target client for the message
-	conn, err := s.getConnection(message.ServiceNodeKey)
-	if err != nil {
-		return err
-	}
-
-	encodedPayload, err := shared.EncodePayload(&message)
-	if err != nil {
-		return err
-	}
-
-	log.Println("Sending a message to a service node", message.ServiceNodeKey)
-	return conn.Send([]byte(encodedPayload + "\n"))
-}
-
 // getConnection returns a connection pointer stored in memory based on clientId
 func (s *server) getConnection(serviceNodeKey string) (*connection.Connection, error) {
 	client, err := database.GetClientWithServiceNodeKey(serviceNodeKey)
@@ -229,26 +215,4 @@ func (s *server) getConnection(serviceNodeKey string) (*connection.Connection, e
 		return nil, fmt.Errorf("Could not find a connected client with Service Node Key: %s ", serviceNodeKey)
 	}
 	return conn.(*connection.Connection), nil
-}
-
-// storeClient Remember a client connection for status updates
-func (s *server) storeClient(conn *connection.Connection) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	e := s.conn.PushBack(conn)
-	conn.SetContext(e)
-
-	clientId, _ := shared.ParseIP(conn.PeerAddr())
-	cache.Memory().Set(clientId, conn, cache2.NoExpiration)
-
-	// Check if the client already exists in the database
-	log.Println("Adding the client to the database:", clientId)
-	database.CreateIfNotExists(clientId, conn.PeerAddr(), "")
-
-	err := database.UpdateClientStatus(clientId, database.StatusUnauthorized)
-	if err != nil {
-		log.Println("Cannot update the client status")
-		conn.ShutdownWrite()
-		return
-	}
 }

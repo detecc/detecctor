@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-func getChat(filter bson.M) (*Chat, error) {
+func getChat(filter interface{}) (*Chat, error) {
 	chat := &Chat{}
 	chatCollection := mgm.Coll(chat)
 
@@ -48,14 +48,15 @@ func GetChatWithId(chatId int64) (*Chat, error) {
 }
 
 func GetChats() ([]Chat, error) {
+	return getChats(bson.M{})
+}
+
+func getChats(filter interface{}) ([]Chat, error) {
 	var (
 		chat    = &Chat{}
 		results []Chat
 	)
-
-	// find all messages with the chatId
-	cursor, err := mgm.Coll(chat).Find(context.TODO(), bson.M{})
-
+	cursor, err := mgm.Coll(chat).Find(context.TODO(), filter)
 	if err = cursor.All(context.TODO(), &results); err != nil {
 		return nil, err
 	}
