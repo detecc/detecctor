@@ -85,7 +85,7 @@ func (s *server) handleMessage(c *connection.Connection, payload shared.Payload)
 
 		// if the payload id is empty, forward to all subscribed chats
 		if payload.Id == "" {
-			chatIds := getChatsSubscribed(payload.ServiceNodeKey, payload.Command)
+			chatIds := s.getSubscribedChats(payload.ServiceNodeKey, payload.Command)
 			if chatIds != nil {
 				s.sendToSubscribedChats(chatIds, &payload)
 			}

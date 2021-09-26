@@ -42,7 +42,7 @@ func GetClients() ([]Client, error) {
 		results     []Client
 	)
 	// find all clients
-	cursor, err := mgm.Coll(serviceNode).Find(context.TODO(), bson.M{})
+	cursor, err := mgm.Coll(serviceNode).Find(mgm.Ctx(), bson.M{})
 	if err = cursor.All(context.TODO(), &results); err != nil {
 		return nil, err
 	}

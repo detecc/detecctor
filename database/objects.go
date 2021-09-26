@@ -11,8 +11,7 @@ const (
 	StatusUnauthorized = "unauthorized"
 )
 
-// Client contains the information of a client (Oxen Service Node).
-// The object should contain the latest information of the Service Node.
+// Client object contains some basic information of a client.
 type Client struct {
 	mgm.DefaultModel `bson:",inline"`
 	IP               string        `json:"IP" bson:"IP"`
@@ -59,8 +58,8 @@ type Chat struct {
 // Else, there are separate entries with values, "*" meaning all.
 // Example entry: subNode: "*", subCommand:"/ping" -> meaning subscribe to the /ping command on all nodes.
 type Subscription struct {
-	Node    string `json:"subNode" bson:"subNode"`
-	Command string `json:"subCommand" bson:"subCommand"`
+	Node    string `json:"nodeId" bson:"nodeId"`
+	Command string `json:"command" bson:"command"`
 }
 
 // Message is a Telegram Message that gets logged in the database.

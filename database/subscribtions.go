@@ -1,15 +1,23 @@
 package database
 
 import (
+	"github.com/kamva/mgm/v3/operator"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
 )
 
-// GetChatsToSendTheNotificationTo get all the chats that include subscription(s):
-// node == NodeId and command == command or nodeId == * and command == *.
-// or node = NodeId and command = * or nodeId ==* and command == command.
-func GetChatsToSendTheNotificationTo(nodeId, command string) ([]Chat, error) {
-	return getChats(bson.M{"subscription": bson.E{}})
+// GetSubscribedChats get all the chats that include subscription(s) where the nodeId == nodeId and command == command
+// or either node == * or command == *.
+func GetSubscribedChats(nodeId, command string) ([]Chat, error) {
+	return getChats(
+		bson.M{"subscriptions.nodeId": bson.M{
+			operator.In: bson.A{nodeId, "*"},
+		},
+			"subscriptions.command": bson.M{
+				operator.In: bson.A{command, "*"},
+			},
+		},
+	)
 }
 
 func SubscribeToAll(chatId int64) error {
@@ -34,25 +42,23 @@ func SubscribeToAll(chatId int64) error {
 	return nil
 }
 
-func AddSubscriptions(chatId int64, nodes []string, commands []string) error {
+func SubscribeTo(chatId int64, nodes []string, commands []string) error {
 	chat, err := GetChatWithId(chatId)
 	if err != nil {
 		return err
 	}
 
-	// check if there is a subscription to everything
+	// check if there is a subscription to all nodes and commands
 	if len(chat.Subscriptions) == 1 {
 		firstSubscription := chat.Subscriptions[0]
 		if firstSubscription.Node == "*" && firstSubscription.Command == "*" {
-			// replace subscription all
+			// replace the all subscription with provided subscriptions
 			chat.Subscriptions = createSubscriptions(nodes, commands)
 			err = updateChat(chat)
 			if err != nil {
 				return err
 			}
 			return nil
-		} else {
-
 		}
 	}
 
@@ -60,7 +66,7 @@ func AddSubscriptions(chatId int64, nodes []string, commands []string) error {
 
 	for _, sub := range subs {
 		isDuplicateFound := false
-		// check if there is a subscription for a node
+		// check if there is an existing subscription for a node and command
 		for _, subscription := range chat.Subscriptions {
 			if sub.Node == subscription.Node && sub.Command == sub.Command {
 				isDuplicateFound = true
@@ -69,10 +75,7 @@ func AddSubscriptions(chatId int64, nodes []string, commands []string) error {
 		if !isDuplicateFound {
 			chat.Subscriptions = append(chat.Subscriptions, sub)
 		}
-
 	}
-
-	chat.Subscriptions = subs
 
 	err = updateChat(chat)
 	if err != nil {
@@ -85,17 +88,16 @@ func AddSubscriptions(chatId int64, nodes []string, commands []string) error {
 func createSubscriptions(nodes []string, commands []string) []Subscription {
 	var subscriptions []Subscription
 	for _, nodeId := range nodes {
-		_, err := GetClientWithServiceNodeKey(nodeId)
 		// check if the node exists
+		_, err := GetClientWithServiceNodeKey(nodeId)
 		if err != nil {
-			log.Println("node doesnt exist", err)
+			log.Println("Error creating a subscription for", nodeId, ":node doesnt exist")
 			continue
 		}
 
 		for _, command := range commands {
 			subscriptions = append(subscriptions, Subscription{Node: nodeId, Command: command})
 		}
-
 	}
 
 	return subscriptions

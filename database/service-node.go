@@ -1,7 +1,6 @@
 package database
 
 import (
-	"context"
 	"github.com/kamva/mgm/v3"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
@@ -38,8 +37,8 @@ func getServiceNodes(filter interface{}) ([]ServiceNode, error) {
 	)
 
 	// get service nodes with a filter
-	cursor, err := mgm.Coll(serviceNode).Find(context.TODO(), filter)
-	if err = cursor.All(context.TODO(), &results); err != nil {
+	cursor, err := mgm.Coll(serviceNode).Find(mgm.Ctx(), filter)
+	if err = cursor.All(mgm.Ctx(), &results); err != nil {
 		return nil, err
 	}
 

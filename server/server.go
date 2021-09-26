@@ -124,7 +124,7 @@ func (s *server) validateCommand(command bot.Command) error {
 		return fmt.Errorf("chat is not authorized")
 	}
 
-	// @todo add logic that validates parameters...
+	// todo include validation middleware here
 
 	return nil
 }

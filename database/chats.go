@@ -56,7 +56,7 @@ func getChats(filter interface{}) ([]Chat, error) {
 		chat    = &Chat{}
 		results []Chat
 	)
-	cursor, err := mgm.Coll(chat).Find(context.TODO(), filter)
+	cursor, err := mgm.Coll(chat).Find(mgm.Ctx(), filter)
 	if err = cursor.All(context.TODO(), &results); err != nil {
 		return nil, err
 	}

@@ -15,12 +15,13 @@ const (
 	NotifyInterval = "notifyInterval"
 )
 
-func getChatsSubscribed(nodeId, command string) []int64 {
+// getSubscribedChats get all the chats that are subscribed to the nodeId, command combo.
+func (s *server) getSubscribedChats(nodeId, command string) []int64 {
 	// todo get from cache?
 
 	// fetch from database
 	var chatIds []int64
-	chats, err := database.GetChatsToSendTheNotificationTo(nodeId, command)
+	chats, err := database.GetSubscribedChats(nodeId, command)
 	if err != nil {
 		log.Println(err)
 		return chatIds
@@ -56,83 +57,58 @@ func (s *server) sendToSubscribedChats(chatIds []int64, payload *shared.Payload)
 	}
 }
 
+// handleSubscription handles the subscribe command and its arguments. Updates the Chat and notifies the user of the result.
 func (s *server) handleSubscription(command bot.Command) {
-	var (
-		nodes    = []string{"*"}
-		commands = []string{"*"}
-	)
+	settings := interpretSubscriptionCommand(command.Args)
 
-	// /sub type value -> /sub command /get_status -> /sub node1,node2 /get_status,/get_cpu_usage
-	settings := interpretSubscriptionCommand(command)
-
+	// subscribe to all
 	if len(settings) == 0 {
 		err := database.SubscribeToAll(command.ChatId)
 		if err != nil {
 			log.Println(err)
 			s.replyToChat(command.ChatId, "an error occurred during subscription", shared.TypeMessage)
+			return
 		}
-		// subscribe to all
 		s.replyToChat(command.ChatId, "subscribed to all nodes and commands", shared.TypeMessage)
 		return
 	}
 
-	for key, value := range settings {
-		switch key {
-		case NodeId:
-			nodes = strings.Split(value, ",")
-			break
-		case Command:
-			commands = strings.Split(value, ",")
-			break
-		case NotifyInterval:
-			break
-		}
-	}
-
-	err := database.AddSubscriptions(command.ChatId, nodes, commands)
+	nodes, commands := getNodesAndCommands(settings)
+	err := database.SubscribeTo(command.ChatId, nodes, commands)
 	if err != nil {
 		s.replyToChat(command.ChatId, "something went wrong while subscribing", shared.TypeMessage)
 	}
 }
 
+// handleUnsubscription handles unsubscribe command.
 func (s *server) handleUnsubscription(command bot.Command) {
-	var (
-		nodes    = []string{"*"}
-		commands = []string{"*"}
-	)
-	settings := interpretSubscriptionCommand(command)
+	settings := interpretSubscriptionCommand(command.Args)
 
+	// if there are no arguments, unsubscribe from all
 	if len(settings) == 0 {
-		// unsubscribe from all
 		err := database.UnSubscribeFromAll(command.ChatId)
 		if err != nil {
 			log.Println("error unsubscribing from all nodes and commands:", err)
 			s.replyToChat(command.ChatId, "could not unsubscribe from all nodes and commands", shared.TypeMessage)
+			return
 		}
 		s.replyToChat(command.ChatId, "successfully unsubscribed from all nodes and commands", shared.TypeMessage)
+		return
 	}
 
-	for key, value := range settings {
-		switch key {
-		case NodeId:
-			nodes = strings.Split(value, ",")
-			break
-		case Command:
-			commands = strings.Split(value, ",")
-			break
-		case NotifyInterval:
-			break
-		}
-	}
+	nodes, commands := getNodesAndCommands(settings)
 	err := database.UnSubscribeFrom(command.ChatId, nodes, commands)
 	if err != nil {
 		s.replyToChat(command.ChatId, "could not unsubscribe from nodes and commands", shared.TypeMessage)
 	}
 }
 
-func interpretSubscriptionCommand(command bot.Command) map[string]string {
+// interpretSubscriptionCommand interpret the arguments of the command and return key-value pairs to further processing.
+// Example command: /sub nodes=node1,node2,node3 commands=/auth,/get_status, where the equals sign means key-value mapping.
+// It will remove any excess or unsupported arguments.
+func interpretSubscriptionCommand(args []string) map[string]string {
 	keyValues := map[string]string{}
-	for _, args := range command.Args {
+	for _, args := range args {
 		keyValue := strings.Split(args, "=")
 		if len(keyValue) >= 2 {
 			switch keyValue[0] {
@@ -143,4 +119,27 @@ func interpretSubscriptionCommand(command bot.Command) map[string]string {
 		}
 	}
 	return keyValues
+}
+
+// getNodesAndCommands gets all the nodes and command entries.
+// Example command: /sub nodes=node1,node2,node3 commands=/auth,/get_status.
+// It will return a list of nodes and commands.
+func getNodesAndCommands(settings map[string]string) ([]string, []string) {
+	var (
+		nodes    = []string{"*"}
+		commands = []string{"*"}
+	)
+	for key, value := range settings {
+		switch key {
+		case NodeId:
+			nodes = strings.Split(value, ",")
+			break
+		case Command:
+			commands = strings.Split(value, ",")
+			break
+		case NotifyInterval:
+			break
+		}
+	}
+	return nodes, commands
 }
