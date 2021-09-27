@@ -1,6 +1,7 @@
 package database
 
 import (
+	"github.com/detecc/detecctor/shared"
 	"github.com/kamva/mgm/v3"
 	"time"
 )
@@ -33,16 +34,35 @@ type Statistics struct {
 	UpdateId         int `json:"updateId" bson:"updateId"`
 }
 
-// ServiceNode contains the information of an Oxen Service Node.
-// This entry is used for storing historical data about the Node.
-// ClientId is a key connected to the Client.
-// ServiceNodeKey is a Service Node key.
-// ServiceNodeStatus is a response from the Client.
-type ServiceNode struct {
-	mgm.DefaultModel  `bson:",inline"`
-	ClientId          string `json:"clientId" bson:"clientId"`
-	ServiceNodeKey    string `json:"serviceNodeKey" bson:"serviceNodeKey"`
-	ServiceNodeStatus string `json:"status" bson:"status"`
+// CommandLog contains information about a Command that was issued to the server, processing of the command
+// and the payloads produced by the plugin as well as any errors that occurred.
+type CommandLog struct {
+	mgm.DefaultModel `bson:",inline"`
+	Command          Command          `json:"command" bson:"command"`
+	Errors           []interface{}    `json:"errors" bson:"errors"`
+	PluginPayloads   []shared.Payload `json:"payloads" bson:"payloads"`
+}
+
+func (c *CommandLog) CollectionName() string {
+	return "command_logs"
+}
+
+// CommandResponseLog contains the client's response to a specific command and payload.
+type CommandResponseLog struct {
+	mgm.DefaultModel `bson:",inline"`
+	PayloadId        string        `json:"payloadId" bson:"payloadId"`
+	Errors           []interface{} `json:"errors" bson:"errors"`
+	PluginResponse   interface{}   `json:"pluginResponse" bson:"pluginResponse"`
+}
+
+func (c *CommandResponseLog) CollectionName() string {
+	return "command_logs"
+}
+
+type Command struct {
+	ChatId int64
+	Name   string
+	Args   []string
 }
 
 // Chat is the Telegram Chat the Bot is listening to.

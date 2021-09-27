@@ -3,10 +3,10 @@ package bot
 import (
 	"errors"
 	"fmt"
-	telegram "github.com/go-telegram-bot-api/telegram-bot-api"
-	"log"
 	"github.com/detecc/detecctor/database"
 	"github.com/detecc/detecctor/shared"
+	telegram "github.com/go-telegram-bot-api/telegram-bot-api"
+	"log"
 	"strings"
 )
 
@@ -77,7 +77,7 @@ func (t *Telegram) replyToChat(replyMessage shared.Reply) {
 func (t *Telegram) ProcessMessage(update telegram.Update) {
 	message := update.Message
 	chatId := message.Chat.ID
-	if len(*message.Entities) == 0 {
+	if message.Entities == nil || len(*message.Entities) == 0 {
 		return
 	}
 

@@ -2,11 +2,11 @@ package server
 
 import (
 	"github.com/Allenxuxu/gev/connection"
-	"log"
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/database"
 	"github.com/detecc/detecctor/plugin"
 	"github.com/detecc/detecctor/shared"
+	"log"
 )
 
 // handleMessage Handle a reply from the client
@@ -63,17 +63,20 @@ func (s *server) handleMessage(c *connection.Connection, payload shared.Payload)
 
 		// send a notification to the user about the failure
 		if payload.Success == false {
+			database.NewCommandResponse(payload.Id, nil, payload.Error)
 			s.replyToChat(chatId.(int64), payload.Error, shared.TypeMessage)
 			return
 		}
 
 		mPlugin, err := plugin.GetPluginManager().GetPlugin(payload.Command)
 		if err != nil {
+			database.NewCommandResponse(payload.Id, nil, err, payload.Error)
 			log.Println("Plugin doesnt exist")
 			return
 		}
 		// send the response to the Telegram Bot
 		pluginResponse := mPlugin.Response(payload)
+		database.NewCommandResponse(payload.Id, pluginResponse.Content, err, payload.Error)
 		s.replyChannel <- pluginResponse
 		break
 	}
