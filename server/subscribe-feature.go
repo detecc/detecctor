@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/detecc/detecctor/bot"
 	"github.com/detecc/detecctor/database"
 	"github.com/detecc/detecctor/plugin"
@@ -65,19 +66,22 @@ func (s *server) handleSubscription(command bot.Command) {
 	if len(settings) == 0 {
 		err := database.SubscribeToAll(command.ChatId)
 		if err != nil {
-			log.Println(err)
-			s.replyToChat(command.ChatId, "an error occurred during subscription", shared.TypeMessage)
+			log.Println("An error occurred during subscription;", err)
+			s.replyToChat(command.ChatId, "An error occurred during subscription.", shared.TypeMessage)
 			return
 		}
-		s.replyToChat(command.ChatId, "subscribed to all nodes and commands", shared.TypeMessage)
+		s.replyToChat(command.ChatId, "You have successfully subscribed to all nodes and commands.", shared.TypeMessage)
 		return
 	}
 
 	nodes, commands := getNodesAndCommands(settings)
 	err := database.SubscribeTo(command.ChatId, nodes, commands)
 	if err != nil {
-		s.replyToChat(command.ChatId, "something went wrong while subscribing", shared.TypeMessage)
+		log.Println("An error occurred during subscription;", err)
+		s.replyToChat(command.ChatId, "Something went wrong while subscribing.", shared.TypeMessage)
+		return
 	}
+	s.replyToChat(command.ChatId, "Successfully subscribed to nodes and/or commands.", shared.TypeMessage)
 }
 
 // handleUnsubscription handles unsubscribe command.
@@ -89,18 +93,21 @@ func (s *server) handleUnsubscription(command bot.Command) {
 		err := database.UnSubscribeFromAll(command.ChatId)
 		if err != nil {
 			log.Println("error unsubscribing from all nodes and commands:", err)
-			s.replyToChat(command.ChatId, "could not unsubscribe from all nodes and commands", shared.TypeMessage)
+			s.replyToChat(command.ChatId, "Could not unsubscribe from all nodes and commands.", shared.TypeMessage)
 			return
 		}
-		s.replyToChat(command.ChatId, "successfully unsubscribed from all nodes and commands", shared.TypeMessage)
+		s.replyToChat(command.ChatId, "Successfully unsubscribed from all nodes and commands.", shared.TypeMessage)
 		return
 	}
 
 	nodes, commands := getNodesAndCommands(settings)
 	err := database.UnSubscribeFrom(command.ChatId, nodes, commands)
 	if err != nil {
-		s.replyToChat(command.ChatId, "could not unsubscribe from nodes and commands", shared.TypeMessage)
+		log.Println("error unsubscribing from nodes and commands:", err)
+		s.replyToChat(command.ChatId, "Could not unsubscribe from provided nodes and/or commands.", shared.TypeMessage)
+		return
 	}
+	s.replyToChat(command.ChatId, "Successfully unsubscribed from provided nodes and/or commands.", shared.TypeMessage)
 }
 
 // interpretSubscriptionCommand interpret the arguments of the command and return key-value pairs to further processing.
@@ -136,6 +143,11 @@ func getNodesAndCommands(settings map[string]string) ([]string, []string) {
 			break
 		case Command:
 			commands = strings.Split(value, ",")
+			for i, command := range commands {
+				if !strings.HasPrefix(command, "/") {
+					commands[i] = fmt.Sprintf("/%s", command)
+				}
+			}
 			break
 		case NotifyInterval:
 			break

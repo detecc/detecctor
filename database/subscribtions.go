@@ -34,12 +34,7 @@ func SubscribeToAll(chatId int64) error {
 		},
 	}
 
-	err = updateChat(chat)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return updateChat(chat)
 }
 
 func SubscribeTo(chatId int64, nodes []string, commands []string) error {
@@ -68,7 +63,7 @@ func SubscribeTo(chatId int64, nodes []string, commands []string) error {
 		isDuplicateFound := false
 		// check if there is an existing subscription for a node and command
 		for _, subscription := range chat.Subscriptions {
-			if sub.Node == subscription.Node && sub.Command == sub.Command {
+			if sub.Node == subscription.Node && subscription.Command == sub.Command {
 				isDuplicateFound = true
 			}
 		}
@@ -77,12 +72,7 @@ func SubscribeTo(chatId int64, nodes []string, commands []string) error {
 		}
 	}
 
-	err = updateChat(chat)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return updateChat(chat)
 }
 
 func createSubscriptions(nodes []string, commands []string) []Subscription {
@@ -90,13 +80,14 @@ func createSubscriptions(nodes []string, commands []string) []Subscription {
 	for _, nodeId := range nodes {
 		// check if the node exists
 		_, err := GetClientWithServiceNodeKey(nodeId)
-		if err != nil {
+		if err != nil && nodeId != "*" {
 			log.Println("Error creating a subscription for", nodeId, ":node doesnt exist")
 			continue
 		}
 
 		for _, command := range commands {
 			subscriptions = append(subscriptions, Subscription{Node: nodeId, Command: command})
+
 		}
 	}
 
@@ -112,12 +103,7 @@ func UnSubscribeFromAll(chatId int64) error {
 	// this overwrites any previous subscriptions.
 	chat.Subscriptions = []Subscription{}
 
-	err = updateChat(chat)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return updateChat(chat)
 }
 
 func UnSubscribeFrom(chatId int64, nodes []string, commands []string) error {
@@ -132,19 +118,28 @@ func UnSubscribeFrom(chatId int64, nodes []string, commands []string) error {
 			return UnSubscribeFromAll(chatId)
 		}
 	}
+
 	for i, subscription := range chat.Subscriptions {
 		for _, node := range nodes {
 			if node == "*" {
-				chat.Subscriptions = append(chat.Subscriptions[:i], chat.Subscriptions[i+1:]...)
+				if i+1 < len(chat.Subscriptions) {
+					chat.Subscriptions = append(chat.Subscriptions[:i], chat.Subscriptions[i+1:]...)
+					continue
+				}
+				chat.Subscriptions = append(chat.Subscriptions[:i])
 				continue
 			}
 			for _, command := range commands {
 				if command == "*" || (command == subscription.Command && node == subscription.Node) {
-					chat.Subscriptions = append(chat.Subscriptions[:i], chat.Subscriptions[i+1:]...)
+					if i+1 < len(chat.Subscriptions) {
+						chat.Subscriptions = append(chat.Subscriptions[:i], chat.Subscriptions[i+1:]...)
+						continue
+					}
+					chat.Subscriptions = append(chat.Subscriptions[:i])
+					continue
 				}
 			}
 		}
 	}
-
-	return nil
+	return updateChat(chat)
 }
