@@ -116,7 +116,7 @@ func (s *server) storeClient(conn *connection.Connection) {
 
 	// Check if the client already exists in the database
 	log.Println("Adding the client to the database:", clientId)
-	database.CreateIfNotExists(clientId, conn.PeerAddr(), "")
+	database.CreateClientIfNotExists(clientId, conn.PeerAddr(), "")
 
 	err := database.UpdateClientStatus(clientId, database.StatusUnauthorized)
 	if err != nil {

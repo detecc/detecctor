@@ -107,7 +107,7 @@ func UpdateClientStatus(clientId, status string) error {
 	return updateClient(client)
 }
 
-func CreateIfNotExists(clientId, IP, SNKey string) *Client {
+func CreateClientIfNotExists(clientId, IP, SNKey string) *Client {
 	client := &Client{
 		IP:             IP,
 		ClientId:       clientId,

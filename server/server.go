@@ -16,10 +16,14 @@ import (
 	"time"
 )
 
+var srv *server
+var once = sync.Once{}
+
 // Start a new TCP/WS server.
 func Start(botChannel chan bot.Command, replyChannel chan shared.Reply) error {
-	serverConfig := config.GetServerConfiguration()
 	var err error
+	serverConfig := config.GetServerConfiguration()
+
 	if botChannel == nil {
 		return fmt.Errorf("bot channel is nil")
 	}
@@ -27,18 +31,20 @@ func Start(botChannel chan bot.Command, replyChannel chan shared.Reply) error {
 		return fmt.Errorf("reply channel is nil")
 	}
 
-	srv := &server{
-		conn:         list.New(),
-		mu:           sync.RWMutex{},
-		botChannel:   botChannel,
-		replyChannel: replyChannel,
-	}
+	once.Do(func() {
+		srv = &server{
+			conn:         list.New(),
+			mu:           sync.RWMutex{},
+			botChannel:   botChannel,
+			replyChannel: replyChannel,
+		}
 
-	address := fmt.Sprintf("%s:%d", serverConfig.Server.Host, serverConfig.Server.Port)
-	srv.server, err = gev.NewServer(srv, gev.Address(address))
-	if err != nil {
-		return err
-	}
+		address := fmt.Sprintf("%s:%d", serverConfig.Server.Host, serverConfig.Server.Port)
+		srv.server, err = gev.NewServer(srv, gev.Address(address))
+		if err != nil {
+			log.Fatal(err)
+		}
+	})
 
 	plugin2.GetPluginManager().LoadPlugins()
 
@@ -123,8 +129,6 @@ func (s *server) validateCommand(command bot.Command) error {
 	if !s.isChatAuthorized(command.ChatId) && command.Name != "/auth" {
 		return fmt.Errorf("chat is not authorized")
 	}
-
-	// todo include validation middleware here
 
 	return nil
 }
