@@ -1,11 +1,9 @@
 # Detecctor
 
 Detecctor is a :zap: fast, fully customizable :heartpulse: monitoring platform. It uses **Telegram** as a notification
-:inbox_tray: service. The main components are a TCP server, MongoDB and multiple clients.
-
-Detecctor is designed with plugins :electric_plug:, which enable total control over the functionality of both server and
-the client. All you do is issue a command and let the :electric_plug: plugin deal with the rest. You can include
-provided plugins, write your own or include plugins from the community.
+service :inbox_tray:. It is designed for use with plugins :electric_plug:, which enable total control over the
+functionality of both server and the client. All you do is issue a command and let the :electric_plug: plugin deal with
+the rest. You can include provided plugins, write your own or include plugins from the community.
 
 ## Configuration
 

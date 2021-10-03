@@ -133,69 +133,7 @@ func (s *server) validateCommand(command bot.Command) error {
 	return nil
 }
 
-// handleCommand handles the invocation of the Plugin.Execute method and sends the payloads produced to the designated clients.
-func (s *server) handleCommand(command bot.Command) {
-	cmdErr := s.validateCommand(command)
-	if cmdErr != nil {
-		s.replyToChat(command.ChatId, "You are not authorized to send this command", shared.TypeMessage)
-		return
-	}
-
-	switch command.Name {
-	case AuthCommand:
-		var token = ""
-
-		if len(command.Args) >= 1 {
-			token = command.Args[0]
-		}
-		message := s.authChat(token, command.ChatId)
-		s.replyToChat(command.ChatId, message, shared.TypeMessage)
-		break
-	case SubscribeCommand, "/subscribe":
-		s.handleSubscription(command)
-		break
-	case UnSubscribeCommand, "/unsubscribe":
-		s.handleUnsubscription(command)
-		break
-	default:
-		s.executePlugin(command)
-		break
-	}
-}
-
-//executePlugin executes the plugin associated with the command and sends a message to the client(s).
-func (s *server) executePlugin(command bot.Command) {
-	//check if the plugin is authorized
-	plugin, err := plugin2.GetPluginManager().GetPlugin(command.Name)
-	if err != nil {
-		log.Println("Plugin with command", command.Name, "doesnt exist")
-		s.replyToChat(command.ChatId, fmt.Sprintf("%s unsupported command", command.Name), shared.TypeMessage)
-		return
-	}
-
-	// invoke the Plugin.Execute method
-	payloads, err := plugin.Execute(command.Args...)
-	if err != nil {
-		log.Println("plugin produced an error:", err)
-		s.replyToChat(command.ChatId, "command could not be executed.", shared.TypeMessage)
-		return
-	}
-
-	if payloads != nil {
-		// send the payloads to the clients
-		for i, payload := range payloads {
-			generatePayloadId(&payload, command.ChatId)
-			log.Println(i, payload)
-			messageErr := s.sendMessage(payload)
-			if messageErr != nil {
-				couldNotSendMessage := fmt.Sprintf("could  not send message to %s: %v", payload.ServiceNodeKey, messageErr)
-				log.Println(couldNotSendMessage)
-				s.replyToChat(command.ChatId, couldNotSendMessage, shared.TypeMessage)
-			}
-		}
-	}
-}
-
+//replyToChat replies to telegram chat with a message.
 func (s *server) replyToChat(chatId int64, content interface{}, contentType int) {
 	if contentType < 0 {
 		contentType = shared.TypeMessage
