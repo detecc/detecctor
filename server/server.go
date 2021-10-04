@@ -66,7 +66,7 @@ func (s *server) stop() {
 // ListenForCommands listen for incoming bot commands
 func (s *server) listenForCommands() {
 	for command := range s.botChannel {
-		log.Println("received command:", command)
+		log.Println("Received command:", command)
 		go s.handleCommand(command)
 	}
 }

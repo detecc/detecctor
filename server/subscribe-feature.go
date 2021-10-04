@@ -52,7 +52,7 @@ func (s *server) sendToSubscribedChats(chatIds []int64, payload *shared.Payload)
 	}
 	pluginResponse := mPlugin.Response(*payload)
 
-	// send the response to the Telegram Bot
+	// send the response to the Bot
 	for _, chatId := range chatIds {
 		s.replyToChat(chatId, pluginResponse.Content, pluginResponse.ReplyType)
 	}

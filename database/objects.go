@@ -24,7 +24,7 @@ type Client struct {
 // Statistics for the telegram bot.
 // ActiveNodes is a number of currently active/connected Service Nodes.
 // TotalNodes is a number of all known connections and is used to calculate the number of offline nodes.
-// UpdateId is a number of the last known Telegram Message ID.
+// UpdateId is a number of the last known Bot Message ID.
 type Statistics struct {
 	mgm.DefaultModel `bson:",inline"`
 	ActiveNodes      int `json:"activeNodes" bson:"activeNodes"`
@@ -44,7 +44,7 @@ type ServiceNode struct {
 	ServiceNodeStatus string `json:"status" bson:"status"`
 }
 
-// Chat is the Telegram Chat the Bot is listening to.
+// Chat is the Chat the Bot is listening to.
 type Chat struct {
 	mgm.DefaultModel `bson:",inline"`
 	ChatId           int64          `json:"chatId" bson:"chatId"`
@@ -62,7 +62,7 @@ type Subscription struct {
 	Command string `json:"command" bson:"command"`
 }
 
-// Message is a Telegram Message that gets logged in the database.
+// Message is a Message that gets logged in the database.
 type Message struct {
 	mgm.DefaultModel `bson:",inline"`
 	ChatId           int    `json:"chatId" bson:"chatId"`

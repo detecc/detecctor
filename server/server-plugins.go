@@ -70,7 +70,7 @@ func (s *server) executePlugin(command bot.Command) {
 	plugin, err := plugin2.GetPluginManager().GetPlugin(command.Name)
 	if err != nil {
 		log.Println("Plugin with command", command.Name, "doesnt exist")
-		s.replyToChat(command.ChatId, fmt.Sprintf("%s unsupported command", command.Name), shared.TypeMessage)
+		s.replyToChat(command.ChatId, fmt.Sprintf("Command %s is unsupported.", command.Name), shared.TypeMessage)
 		return
 	}
 

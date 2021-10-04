@@ -1,11 +1,11 @@
 package main
 
 import (
-	"log"
 	"github.com/detecc/detecctor/bot"
 	"github.com/detecc/detecctor/config"
 	"github.com/detecc/detecctor/database"
 	"github.com/detecc/detecctor/server"
+	"log"
 )
 
 func main() {
@@ -14,12 +14,13 @@ func main() {
 	// Connect to the database
 	database.Connect()
 
-	// Start telegram bot
-	telegram := bot.NewBot(config.GetServerConfiguration().Telegram.BotToken)
-	go telegram.Start()
+	// Start a bot specified from the configuration
+	proxy := bot.GetProxy(bot.NewBot(config.GetServerConfiguration().Bot))
+
+	go proxy.Start()
 
 	// Start monitoring server
-	err := server.Start(telegram.CommandsChannel, telegram.ReplyChannel)
+	err := server.Start(proxy.CommandsChannel, proxy.ReplyChannel)
 	if err != nil {
 		log.Println(err)
 		return
