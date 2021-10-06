@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"github.com/Allenxuxu/gev"
 	"github.com/Allenxuxu/gev/connection"
-	cache2 "github.com/patrickmn/go-cache"
-	"log"
 	"github.com/detecc/detecctor/bot"
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/config"
 	"github.com/detecc/detecctor/database"
 	plugin2 "github.com/detecc/detecctor/plugin"
 	"github.com/detecc/detecctor/shared"
+	cache2 "github.com/patrickmn/go-cache"
+	"log"
 	"sync"
 	"time"
 )
@@ -148,10 +148,11 @@ func (s *server) handleCommand(command bot.Command) {
 		s.replyToChat(command.ChatId, message, shared.TypeMessage)
 		break
 	default:
-		//check if the plugin is authorized
+		//check if the plugin is exists
 		plugin, err := plugin2.GetPluginManager().GetPlugin(command.Name)
 		if err != nil {
 			log.Println("Plugin with command", command.Name, "doesnt exist")
+			database.NewCommandLog(command.ChatId, command.Name, command.Args, nil, err.Error())
 			s.replyToChat(command.ChatId, fmt.Sprintf("%s unsupported command", command.Name), shared.TypeMessage)
 			return
 		}
@@ -160,9 +161,11 @@ func (s *server) handleCommand(command bot.Command) {
 		payloads, err := plugin.Execute(command.Args...)
 		if err != nil {
 			log.Println("plugin produced an error:", err)
+			database.NewCommandLog(command.ChatId, command.Name, command.Args, payloads, err.Error())
 			return
 		}
 
+		database.NewCommandLog(command.ChatId, command.Name, command.Args, payloads)
 		// send the payloads to the clients
 		for i, payload := range payloads {
 			generatePayloadId(&payload, command.ChatId)
