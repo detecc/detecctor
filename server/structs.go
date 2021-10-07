@@ -9,9 +9,11 @@ import (
 )
 
 const (
-	AuthCommand        = "/auth"
-	SubscribeCommand   = "/sub"
-	UnSubscribeCommand = "/unsub"
+	AuthCommand          = "/auth"
+	SubscribeCommand     = "/sub"
+	UnSubscribeCommand   = "/unsub"
+	LanguageCommand      = "/language"
+	LanguageCommandShort = "/lang"
 )
 
 // Server TCP/Websockets server.

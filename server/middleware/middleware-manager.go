@@ -62,6 +62,9 @@ func (m *MiddlewareManager) GetAllMiddleware() []MiddlewareHandler {
 // Returns an error if it occurred during execution.
 func (m *MiddlewareManager) Chain(ctx context.Context, middleware ...string) error {
 	var finalMiddleware MiddlewareHandler
+	if len(middleware) == 0 {
+		return nil
+	}
 
 	for i, key := range middleware {
 		if !m.HasMiddleware(key) {
@@ -81,5 +84,6 @@ func (m *MiddlewareManager) Chain(ctx context.Context, middleware ...string) err
 			finalMiddleware = mw
 		}
 	}
+
 	return finalMiddleware.Execute(ctx)
 }

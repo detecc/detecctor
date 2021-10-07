@@ -68,8 +68,11 @@ func AddChat(chatId int64, name string) error {
 		return nil
 	}
 	chat := &Chat{
-		ChatId: chatId,
-		Name:   name,
+		ChatId:        chatId,
+		Name:          name,
+		IsAuthorized:  false,
+		Language:      "en",
+		Subscriptions: []Subscription{},
 	}
 
 	return mgm.Coll(&Chat{}).Create(chat)
