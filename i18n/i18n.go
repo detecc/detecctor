@@ -2,7 +2,6 @@ package i18n
 
 import (
 	"fmt"
-	"github.com/detecc/detecctor/database"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
@@ -177,26 +176,4 @@ func Localize(lang string, messageId string, data map[string]interface{}, plural
 	}
 
 	return msg, nil
-}
-
-func TranslateReplyMessage(chatId int64, content interface{}) (string, error) {
-	message := content.(map[string]interface{})
-	messageId := message["messageId"].(string)
-	data := message["data"].(map[string]interface{})
-	plural := message["plural"]
-
-	// get the preferred language for the chat.
-	lang, err2 := database.GetLanguage(chatId)
-	if err2 != nil {
-		return "", err2
-	}
-
-	// see if the translation is available
-	localize, err := Localize(lang, messageId, data, plural)
-	if err != nil {
-		log.Println("Error localizing the message", err)
-		return "", err
-	}
-	return localize, nil
-
 }

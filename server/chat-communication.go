@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/detecc/detecctor/database"
 	"github.com/detecc/detecctor/i18n"
 	"github.com/detecc/detecctor/shared"
 	"log"
@@ -35,7 +36,7 @@ func (s *server) replyToChat(chatId int64, content interface{}, contentType int)
 
 	if contentType == shared.TypeMessage && reflect.ValueOf(content).Kind() == reflect.Map {
 		// if the content type is a message and contains a map, translate the message
-		translatedMessage, err := i18n.TranslateReplyMessage(chatId, content)
+		translatedMessage, err := TranslateReplyMessage(chatId, content)
 		if err != nil {
 			log.Println("Error translating the message", err)
 			return
@@ -49,4 +50,26 @@ func (s *server) replyToChat(chatId int64, content interface{}, contentType int)
 		ReplyType: contentType,
 		Content:   content,
 	}
+}
+
+func TranslateReplyMessage(chatId int64, content interface{}) (string, error) {
+	message := content.(map[string]interface{})
+	messageId := message["messageId"].(string)
+	data := message["data"].(map[string]interface{})
+	plural := message["plural"]
+
+	// get the preferred language for the chat.
+	lang, err2 := database.GetLanguage(chatId)
+	if err2 != nil {
+		return "", err2
+	}
+
+	// see if the translation is available
+	localize, err := i18n.Localize(lang, messageId, data, plural)
+	if err != nil {
+		log.Println("Error localizing the message", err)
+		return "", err
+	}
+	return localize, nil
+
 }
