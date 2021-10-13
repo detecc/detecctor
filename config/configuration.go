@@ -3,12 +3,12 @@ package config
 import (
 	"flag"
 	"fmt"
+	cache2 "github.com/detecc/detecctor/cache"
 	"github.com/kkyr/fig"
 	"github.com/patrickmn/go-cache"
 	"log"
 	"os"
 	"path/filepath"
-	cache2 "github.com/detecc/detecctor/cache"
 )
 
 // GetFlags get the program flags and store them in the cache

@@ -3,10 +3,10 @@ package server
 import (
 	"crypto/rand"
 	"fmt"
-	"log"
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/database"
 	"github.com/detecc/detecctor/shared"
+	"log"
 	"time"
 )
 
@@ -25,15 +25,15 @@ func (s *server) isChatAuthorized(chatId int64) bool {
 // The token is cached and expires in 5 minutes. If the user manages to provide the same token within a 5-minute time frame,
 // it is considered that the user is authorized to use the server.
 func (s *server) authChat(token string, chatId int64) string {
-	var returnMessage = "Invalid or expired token."
+	var returnMessage = "InvalidToken"
 	// check if the token is in the cache and if it matches the provided token
 	cachedToken, isFound := cache.Memory().Get(fmt.Sprintf("auth-token-%d", chatId))
 	if isFound && cachedToken.(string) == token {
-		returnMessage = "You have been authorized successfully!"
+		returnMessage = "ChatAuthorized"
 		err := database.AuthorizeChat(chatId)
 		if err != nil {
 			log.Println(err)
-			returnMessage = "Error authorizing the chat."
+			returnMessage = "AuthorizationError"
 		}
 
 		return returnMessage
@@ -42,7 +42,7 @@ func (s *server) authChat(token string, chatId int64) string {
 	if !isFound && token == "" {
 		// generate a token
 		GenerateChatAuthenticationToken(chatId)
-		returnMessage = "Generated a token for authentication."
+		returnMessage = "GeneratedToken"
 	}
 
 	return returnMessage

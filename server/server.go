@@ -9,7 +9,7 @@ import (
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/config"
 	"github.com/detecc/detecctor/database"
-	plugin2 "github.com/detecc/detecctor/plugin"
+	plugin2 "github.com/detecc/detecctor/server/plugin"
 	"github.com/detecc/detecctor/shared"
 	"log"
 	"sync"
@@ -66,7 +66,7 @@ func (s *server) stop() {
 // ListenForCommands listen for incoming bot commands
 func (s *server) listenForCommands() {
 	for command := range s.botChannel {
-		log.Println("received command:", command)
+		log.Println("Received command:", command)
 		go s.handleCommand(command)
 	}
 }
@@ -115,11 +115,18 @@ func (s *server) OnClose(c *connection.Connection) {
 			log.Println(err)
 			return
 		}
-		//notify the user(s) the node went down
+
 		notificationMessage := fmt.Sprintf("Client %s went offline at %s", client.ServiceNodeKey, time.Now().Format(time.RFC1123))
 		log.Println(notificationMessage)
+
+		data := make(map[string]interface{})
+		data["ServiceNodeKey"] = client.ServiceNodeKey
+		data["Time"] = time.Now().Format(time.RFC1123)
+		message := MakeTranslationMap("ClientDisconnected", nil, data)
+
+		//notify the user(s) the node went down
 		for _, chat := range chats {
-			s.replyToChat(chat.ChatId, notificationMessage, shared.TypeMessage)
+			s.replyToChat(chat.ChatId, message, shared.TypeMessage)
 		}
 	}
 }
@@ -131,19 +138,6 @@ func (s *server) validateCommand(command bot.Command) error {
 	}
 
 	return nil
-}
-
-//replyToChat replies to telegram chat with a message.
-func (s *server) replyToChat(chatId int64, content interface{}, contentType int) {
-	if contentType < 0 {
-		contentType = shared.TypeMessage
-	}
-
-	s.replyChannel <- shared.Reply{
-		ChatId:    chatId,
-		ReplyType: contentType,
-		Content:   content,
-	}
 }
 
 // getConnection returns a connection pointer stored in memory based on clientId
