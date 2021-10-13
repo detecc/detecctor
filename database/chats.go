@@ -1,7 +1,6 @@
 package database
 
 import (
-	"context"
 	"github.com/kamva/mgm/v3"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
@@ -57,7 +56,7 @@ func getChats(filter interface{}) ([]Chat, error) {
 		results []Chat
 	)
 	cursor, err := mgm.Coll(chat).Find(mgm.Ctx(), filter)
-	if err = cursor.All(context.TODO(), &results); err != nil {
+	if err = cursor.All(mgm.Ctx(), &results); err != nil {
 		return nil, err
 	}
 	return results, nil
@@ -68,8 +67,11 @@ func AddChat(chatId int64, name string) error {
 		return nil
 	}
 	chat := &Chat{
-		ChatId: chatId,
-		Name:   name,
+		ChatId:        chatId,
+		Name:          name,
+		IsAuthorized:  false,
+		Language:      "en",
+		Subscriptions: []Subscription{},
 	}
 
 	return mgm.Coll(&Chat{}).Create(chat)

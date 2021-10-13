@@ -42,12 +42,12 @@ func (s *server) sendMessage(message shared.Payload) error {
 func (s *server) handleMessage(c *connection.Connection, payload shared.Payload) {
 	clientId, _ := shared.ParseIP(c.PeerAddr())
 	isNodeAuthorized := database.IsClientAuthorized(clientId)
-	log.Println("handling message from", clientId)
+	log.Println("Handling message from", clientId)
 
 	switch payload.Command {
 	case AuthCommand:
 		if isNodeAuthorized {
-			log.Println("client is already authorized")
+			log.Println("Client is already authorized")
 			payload.Error = "already authorized"
 			payload.Success = false
 			// reply to the client authorization request
@@ -62,7 +62,7 @@ func (s *server) handleMessage(c *connection.Connection, payload shared.Payload)
 
 		err := s.authorizeClient(clientId, payload)
 		if err != nil {
-			log.Println("client couldn't be authorized:", err)
+			log.Println("Client couldn't be authorized:", err)
 			payload.Error = err.Error()
 			payload.Success = false
 			// s.sendMessage(payload)
@@ -71,7 +71,7 @@ func (s *server) handleMessage(c *connection.Connection, payload shared.Payload)
 		break
 	default:
 		if !isNodeAuthorized {
-			log.Println("client is not authorized")
+			log.Println("Client is not authorized.")
 			payload.Error = "not authorized"
 			payload.Success = false
 			err := s.sendMessage(payload)
@@ -116,7 +116,7 @@ func (s *server) storeClient(conn *connection.Connection) {
 
 	// Check if the client already exists in the database
 	log.Println("Adding the client to the database:", clientId)
-	database.CreateIfNotExists(clientId, conn.PeerAddr(), "")
+	database.CreateClientIfNotExists(clientId, conn.PeerAddr(), "")
 
 	err := database.UpdateClientStatus(clientId, database.StatusUnauthorized)
 	if err != nil {

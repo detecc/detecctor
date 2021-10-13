@@ -9,17 +9,21 @@ import (
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/config"
 	"github.com/detecc/detecctor/database"
-	plugin2 "github.com/detecc/detecctor/plugin"
+	plugin2 "github.com/detecc/detecctor/server/plugin"
 	"github.com/detecc/detecctor/shared"
 	"log"
 	"sync"
 	"time"
 )
 
+var srv *server
+var once = sync.Once{}
+
 // Start a new TCP/WS server.
 func Start(botChannel chan bot.Command, replyChannel chan shared.Reply) error {
-	serverConfig := config.GetServerConfiguration()
 	var err error
+	serverConfig := config.GetServerConfiguration()
+
 	if botChannel == nil {
 		return fmt.Errorf("bot channel is nil")
 	}
@@ -27,18 +31,20 @@ func Start(botChannel chan bot.Command, replyChannel chan shared.Reply) error {
 		return fmt.Errorf("reply channel is nil")
 	}
 
-	srv := &server{
-		conn:         list.New(),
-		mu:           sync.RWMutex{},
-		botChannel:   botChannel,
-		replyChannel: replyChannel,
-	}
+	once.Do(func() {
+		srv = &server{
+			conn:         list.New(),
+			mu:           sync.RWMutex{},
+			botChannel:   botChannel,
+			replyChannel: replyChannel,
+		}
 
-	address := fmt.Sprintf("%s:%d", serverConfig.Server.Host, serverConfig.Server.Port)
-	srv.server, err = gev.NewServer(srv, gev.Address(address))
-	if err != nil {
-		return err
-	}
+		address := fmt.Sprintf("%s:%d", serverConfig.Server.Host, serverConfig.Server.Port)
+		srv.server, err = gev.NewServer(srv, gev.Address(address))
+		if err != nil {
+			log.Fatal(err)
+		}
+	})
 
 	plugin2.GetPluginManager().LoadPlugins()
 
@@ -60,7 +66,7 @@ func (s *server) stop() {
 // ListenForCommands listen for incoming bot commands
 func (s *server) listenForCommands() {
 	for command := range s.botChannel {
-		log.Println("received command:", command)
+		log.Println("Received command:", command)
 		go s.handleCommand(command)
 	}
 }
@@ -109,11 +115,18 @@ func (s *server) OnClose(c *connection.Connection) {
 			log.Println(err)
 			return
 		}
-		//notify the user(s) the node went down
+
 		notificationMessage := fmt.Sprintf("Client %s went offline at %s", client.ServiceNodeKey, time.Now().Format(time.RFC1123))
 		log.Println(notificationMessage)
+
+		data := make(map[string]interface{})
+		data["ServiceNodeKey"] = client.ServiceNodeKey
+		data["Time"] = time.Now().Format(time.RFC1123)
+		message := MakeTranslationMap("ClientDisconnected", nil, data)
+
+		//notify the user(s) the node went down
 		for _, chat := range chats {
-			s.replyToChat(chat.ChatId, notificationMessage, shared.TypeMessage)
+			s.replyToChat(chat.ChatId, message, shared.TypeMessage)
 		}
 	}
 }
@@ -124,84 +137,7 @@ func (s *server) validateCommand(command bot.Command) error {
 		return fmt.Errorf("chat is not authorized")
 	}
 
-	// todo include validation middleware here
-
 	return nil
-}
-
-// handleCommand handles the invocation of the Plugin.Execute method and sends the payloads produced to the designated clients.
-func (s *server) handleCommand(command bot.Command) {
-	cmdErr := s.validateCommand(command)
-	if cmdErr != nil {
-		s.replyToChat(command.ChatId, "You are not authorized to send this command", shared.TypeMessage)
-		return
-	}
-
-	switch command.Name {
-	case AuthCommand:
-		var token = ""
-
-		if len(command.Args) >= 1 {
-			token = command.Args[0]
-		}
-		message := s.authChat(token, command.ChatId)
-		s.replyToChat(command.ChatId, message, shared.TypeMessage)
-		break
-	case SubscribeCommand, "/subscribe":
-		s.handleSubscription(command)
-		break
-	case UnSubscribeCommand, "/unsubscribe":
-		s.handleUnsubscription(command)
-		break
-	default:
-		s.executePlugin(command)
-		break
-	}
-}
-
-//executePlugin executes the plugin associated with the command and sends a message to the client(s).
-func (s *server) executePlugin(command bot.Command) {
-	//check if the plugin is authorized
-	plugin, err := plugin2.GetPluginManager().GetPlugin(command.Name)
-	if err != nil {
-		log.Println("Plugin with command", command.Name, "doesnt exist")
-		s.replyToChat(command.ChatId, fmt.Sprintf("%s unsupported command", command.Name), shared.TypeMessage)
-		return
-	}
-
-	// invoke the Plugin.Execute method
-	payloads, err := plugin.Execute(command.Args...)
-	if err != nil {
-		log.Println("plugin produced an error:", err)
-		s.replyToChat(command.ChatId, "command could not be executed.", shared.TypeMessage)
-		return
-	}
-
-	if payloads != nil {
-		// send the payloads to the clients
-		for i, payload := range payloads {
-			generatePayloadId(&payload, command.ChatId)
-			log.Println(i, payload)
-			messageErr := s.sendMessage(payload)
-			if messageErr != nil {
-				couldNotSendMessage := fmt.Sprintf("could  not send message to %s: %v", payload.ServiceNodeKey, messageErr)
-				log.Println(couldNotSendMessage)
-				s.replyToChat(command.ChatId, couldNotSendMessage, shared.TypeMessage)
-			}
-		}
-	}
-}
-
-func (s *server) replyToChat(chatId int64, content interface{}, contentType int) {
-	if contentType < 0 {
-		contentType = shared.TypeMessage
-	}
-
-	s.replyChannel <- shared.Reply{
-		ChatId:    chatId,
-		ReplyType: contentType,
-		Content:   content,
-	}
 }
 
 // getConnection returns a connection pointer stored in memory based on clientId

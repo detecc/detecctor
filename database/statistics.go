@@ -8,21 +8,12 @@ import (
 
 func updateStatistics(stats *Statistics) error {
 	statsColl := &Statistics{}
-	err := mgm.Coll(statsColl).Update(stats)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	return nil
+	return mgm.Coll(statsColl).Update(stats)
 }
 
 func createStatistics(statistics *Statistics) error {
 	stats := &Statistics{}
-	err := mgm.Coll(stats).Create(statistics)
-	if err != nil {
-		return err
-	}
-	return nil
+	return mgm.Coll(stats).Create(statistics)
 }
 
 func NodeOnline() error {

@@ -1,9 +1,9 @@
 package config
 
 type Configuration struct {
-	Server   Server
-	Telegram Telegram
-	Mongo    Database
+	Server Server
+	Bot    BotConfiguration
+	Mongo  Database
 }
 
 type Server struct {
@@ -14,8 +14,10 @@ type Server struct {
 	Plugins      []string
 }
 
-type Telegram struct {
-	BotToken string `fig:"botToken" validate:"required"`
+type BotConfiguration struct {
+	Token string `fig:"token" validate:"required"`
+	Type  string `fig:"type" validate:"required"`
+	ID    string `fig:"id" validate:"required"`
 }
 
 type Database struct {

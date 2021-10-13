@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/detecc/detecctor/bot"
 	"github.com/detecc/detecctor/database"
-	"github.com/detecc/detecctor/plugin"
+	"github.com/detecc/detecctor/server/plugin"
 	"github.com/detecc/detecctor/shared"
 	"log"
 	"strings"
@@ -52,7 +52,7 @@ func (s *server) sendToSubscribedChats(chatIds []int64, payload *shared.Payload)
 	}
 	pluginResponse := mPlugin.Response(*payload)
 
-	// send the response to the Telegram Bot
+	// send the response to the Bot
 	for _, chatId := range chatIds {
 		s.replyToChat(chatId, pluginResponse.Content, pluginResponse.ReplyType)
 	}
@@ -67,10 +67,14 @@ func (s *server) handleSubscription(command bot.Command) {
 		err := database.SubscribeToAll(command.ChatId)
 		if err != nil {
 			log.Println("An error occurred during subscription;", err)
-			s.replyToChat(command.ChatId, "An error occurred during subscription.", shared.TypeMessage)
+			data := make(map[string]interface{})
+			data["Error"] = err.Error()
+
+			s.replyToChat(command.ChatId, MakeTranslationMap("SubscriptionFail", nil, data), shared.TypeMessage)
 			return
 		}
-		s.replyToChat(command.ChatId, "You have successfully subscribed to all nodes and commands.", shared.TypeMessage)
+
+		s.replyToChat(command.ChatId, MakeTranslationMap("SubscriptionSuccess", nil, nil), shared.TypeMessage)
 		return
 	}
 
@@ -78,10 +82,12 @@ func (s *server) handleSubscription(command bot.Command) {
 	err := database.SubscribeTo(command.ChatId, nodes, commands)
 	if err != nil {
 		log.Println("An error occurred during subscription;", err)
-		s.replyToChat(command.ChatId, "Something went wrong while subscribing.", shared.TypeMessage)
+		data := make(map[string]interface{})
+		data["Error"] = err.Error()
+		s.replyToChat(command.ChatId, MakeTranslationMap("SubscriptionFail", nil, data), shared.TypeMessage)
 		return
 	}
-	s.replyToChat(command.ChatId, "Successfully subscribed to nodes and/or commands.", shared.TypeMessage)
+	s.replyToChat(command.ChatId, MakeTranslationMap("SubscriptionSuccess", nil, nil), shared.TypeMessage)
 }
 
 // handleUnsubscription handles unsubscribe command.
@@ -92,11 +98,13 @@ func (s *server) handleUnsubscription(command bot.Command) {
 	if len(settings) == 0 {
 		err := database.UnSubscribeFromAll(command.ChatId)
 		if err != nil {
-			log.Println("error unsubscribing from all nodes and commands:", err)
-			s.replyToChat(command.ChatId, "Could not unsubscribe from all nodes and commands.", shared.TypeMessage)
+			log.Println("Error unsubscribing from all nodes and commands:", err)
+			data := make(map[string]interface{})
+			data["Error"] = err.Error()
+			s.replyToChat(command.ChatId, MakeTranslationMap("UnsubscribeFail", nil, data), shared.TypeMessage)
 			return
 		}
-		s.replyToChat(command.ChatId, "Successfully unsubscribed from all nodes and commands.", shared.TypeMessage)
+		s.replyToChat(command.ChatId, MakeTranslationMap("UnsubscribeSuccess", nil, nil), shared.TypeMessage)
 		return
 	}
 
@@ -104,10 +112,12 @@ func (s *server) handleUnsubscription(command bot.Command) {
 	err := database.UnSubscribeFrom(command.ChatId, nodes, commands)
 	if err != nil {
 		log.Println("error unsubscribing from nodes and commands:", err)
-		s.replyToChat(command.ChatId, "Could not unsubscribe from provided nodes and/or commands.", shared.TypeMessage)
+		data := make(map[string]interface{})
+		data["Error"] = err.Error()
+		s.replyToChat(command.ChatId, MakeTranslationMap("UnsubscribeFail", nil, data), shared.TypeMessage)
 		return
 	}
-	s.replyToChat(command.ChatId, "Successfully unsubscribed from provided nodes and/or commands.", shared.TypeMessage)
+	s.replyToChat(command.ChatId, MakeTranslationMap("UnsubscribeSuccess", nil, nil), shared.TypeMessage)
 }
 
 // interpretSubscriptionCommand interpret the arguments of the command and return key-value pairs to further processing.
