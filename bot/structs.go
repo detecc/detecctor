@@ -18,7 +18,7 @@ var proxy *Proxy
 
 type (
 
-	// Bot represent a chatbot (e.g. Telegram, Discord, Slack bot).
+	// Bot represents a chatbot (e.g. Telegram, Discord, Slack bot).
 	Bot interface {
 		// Start should initialize the bot to listen to the chat.
 		Start()

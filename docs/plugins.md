@@ -12,7 +12,7 @@ returns an error and an array of `Payload`s that will be sent to different clien
 receiving the response from the client, the `Response` method will be invoked with the Client's
 response (`Payload.Data`) and will create a `Reply` struct to send back to the Telegram Chat.
 
-The `plugin.Handler` is shown below ([source file](../plugin/plugins.go)):
+The `plugin.Handler` is shown below ([source file](../server/plugin/plugins.go)):
 
 ```golang
 package plugin
@@ -99,6 +99,27 @@ func (e Example) Execute(args ...string) ([]shared.Payload , error) {
 	return []shared.Payload{}, nil
 }
 ```
+
+## Translating replies
+
+If you want to, you can translate the message you want to sent back to the chat. Firstly, add a new message in init
+function by calling:
+
+```go
+AddDefaultMessage(i18n.Message{
+ID:    "Hello",
+Other: "Hello,World!",
+})
+```
+
+Then you need to extract messages using the go-i18n commands. Check out [go-i18n](https://github.com/nicksnyder/go-i18n)
+for more insight into messages and translations.
+
+To actually translate the message returned from the plugin, there are two options:
+
+1. Using `i18n.Localize(lang string, messageId string, data map[string]interface{}, plural interface{})`
+2. Using `i18n.TranslateReplyMessage(chatId int64, content interface{})`, which fetches the default language from the
+   database and uses the `Localize` function by casting the content.
 
 ## Documenting plugins
 

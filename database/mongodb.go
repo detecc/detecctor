@@ -2,10 +2,10 @@ package database
 
 import (
 	"fmt"
+	"github.com/detecc/detecctor/config"
 	"github.com/kamva/mgm/v3"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
-	"github.com/detecc/detecctor/config"
 )
 
 // InitDatabase check if database exists, if not, create a database.

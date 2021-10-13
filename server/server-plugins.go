@@ -4,30 +4,21 @@ import (
 	"context"
 	"fmt"
 	"github.com/detecc/detecctor/bot"
-	"github.com/detecc/detecctor/middleware"
-	plugin2 "github.com/detecc/detecctor/plugin"
+	"github.com/detecc/detecctor/database"
+	"github.com/detecc/detecctor/server/middleware"
+	plugin2 "github.com/detecc/detecctor/server/plugin"
 	"github.com/detecc/detecctor/shared"
 	"log"
 	"strings"
 )
-
-// SendMessageToChat is used to expose the server replyToChat method to the Plugins.
-func SendMessageToChat(chatId int64, messageType int, content interface{}) error {
-	switch messageType {
-	case shared.TypeMessage, shared.TypePhoto, shared.TypeAudio:
-		srv.replyToChat(chatId, content, messageType)
-		return nil
-	default:
-		return fmt.Errorf("unsupported message type")
-	}
-}
 
 // handleCommand handles the invocation of the Plugin.Execute method and sends the payloads produced to the designated clients.
 func (s *server) handleCommand(command bot.Command) {
 
 	cmdErr := s.validateCommand(command)
 	if cmdErr != nil {
-		s.replyToChat(command.ChatId, "You are not authorized to send this command.", shared.TypeMessage)
+		log.Println("Chat is not authorized to execute", command.Name)
+		s.replyToChat(command.ChatId, MakeTranslationMap("ChatUnauthorized", nil, nil), shared.TypeMessage)
 		return
 	}
 
@@ -40,13 +31,29 @@ func (s *server) handleCommand(command bot.Command) {
 		}
 
 		message := s.authChat(token, command.ChatId)
-		s.replyToChat(command.ChatId, message, shared.TypeMessage)
+		s.replyToChat(command.ChatId, MakeTranslationMap(message, nil, nil), shared.TypeMessage)
 		break
 	case SubscribeCommand, "/subscribe":
 		s.handleSubscription(command)
 		break
 	case UnSubscribeCommand, "/unsubscribe":
 		s.handleUnsubscription(command)
+		break
+	case LanguageCommand, LanguageCommandShort:
+		if len(command.Args) >= 1 {
+			lang := command.Args[0]
+
+			err := database.SetLanguage(command.ChatId, lang)
+			if err != nil {
+				s.replyToChat(command.ChatId, fmt.Sprintf("An error occured while setting the language: %v.", err), shared.TypeMessage)
+				return
+			}
+
+			s.replyToChat(command.ChatId, fmt.Sprintf("Successfully set the language to: %s.", lang), shared.TypeMessage)
+			break
+		}
+
+		s.replyToChat(command.ChatId, MakeTranslationMap("InvalidArguments", nil, nil), shared.TypeMessage)
 		break
 	default:
 		s.executePlugin(command)
@@ -59,7 +66,7 @@ func (s *server) executeMiddleware(chatId int64, ctx context.Context, metadata p
 	middlewareErr := middleware.GetMiddlewareManager().Chain(ctx, metadata.Middleware...)
 	if middlewareErr != nil && !strings.Contains(middlewareErr.Error(), "not found") {
 		log.Println(middlewareErr)
-		s.replyToChat(chatId, "an error occurred while executing", shared.TypeMessage)
+		s.replyToChat(chatId, "an error occurred while executing middleware:", shared.TypeMessage)
 		return
 	}
 }
@@ -70,7 +77,11 @@ func (s *server) executePlugin(command bot.Command) {
 	plugin, err := plugin2.GetPluginManager().GetPlugin(command.Name)
 	if err != nil {
 		log.Println("Plugin with command", command.Name, "doesnt exist")
-		s.replyToChat(command.ChatId, fmt.Sprintf("Command %s is unsupported.", command.Name), shared.TypeMessage)
+
+		dataMap := make(map[string]interface{})
+		dataMap["Command"] = command.Name
+
+		s.replyToChat(command.ChatId, MakeTranslationMap("UnsupportedCommand", nil, dataMap), shared.TypeMessage)
 		return
 	}
 
@@ -82,12 +93,14 @@ func (s *server) executePlugin(command bot.Command) {
 	payloads, err := plugin.Execute(command.Args...)
 	if err != nil {
 		log.Println("plugin produced an error:", err)
-		s.replyToChat(command.ChatId, "command could not be executed.", shared.TypeMessage)
+		dataMap := make(map[string]interface{})
+		dataMap["Error"] = err.Error()
+
+		s.replyToChat(command.ChatId, MakeTranslationMap("PluginExecutionFailed", nil, dataMap), shared.TypeMessage)
 		return
 	}
 
 	switch pluginMetadata.Type {
-
 	case plugin2.PluginTypeServerOnly:
 		// do nothing. If the plugin needs to send something to the user, it should call SendMessageToChat method.
 		break
@@ -98,16 +111,25 @@ func (s *server) executePlugin(command bot.Command) {
 				generatePayloadId(&payload, command.ChatId)
 				messageErr := s.sendMessage(payload)
 				if messageErr != nil {
-					couldNotSendMessage := fmt.Sprintf("could  not send message to %s: %v", payload.ServiceNodeKey, messageErr)
-					log.Println(couldNotSendMessage)
-					s.replyToChat(command.ChatId, couldNotSendMessage, shared.TypeMessage)
+					log.Println("Could not send message to the client:", err)
+
+					dataMap := make(map[string]interface{})
+					dataMap["ServiceNodeKey"] = payload.ServiceNodeKey
+					dataMap["Error"] = err.Error()
+
+					s.replyToChat(command.ChatId, MakeTranslationMap("UnableToSendMessage", nil, dataMap), shared.TypeMessage)
 				}
 			}
 		}
 		break
 	default:
 		log.Println("Invalid plugin type:", pluginMetadata.Type)
-		s.replyToChat(command.ChatId, fmt.Sprintf("plugin %s unable to execute (invalid type).", command.Name), shared.TypeMessage)
+
+		dataMap := make(map[string]interface{})
+		dataMap["Plugin"] = command.Name
+		dataMap["PluginType"] = pluginMetadata.Type
+
+		s.replyToChat(command.ChatId, MakeTranslationMap("InvalidPluginType", nil, dataMap), shared.TypeMessage)
 		return
 	}
 }
