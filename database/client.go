@@ -1,7 +1,6 @@
 package database
 
 import (
-	"context"
 	"fmt"
 	"github.com/kamva/mgm/v3"
 	"go.mongodb.org/mongo-driver/bson"
@@ -43,7 +42,7 @@ func GetClients() ([]Client, error) {
 	)
 	// find all clients
 	cursor, err := mgm.Coll(serviceNode).Find(mgm.Ctx(), bson.M{})
-	if err = cursor.All(context.TODO(), &results); err != nil {
+	if err = cursor.All(mgm.Ctx(), &results); err != nil {
 		return nil, err
 	}
 
@@ -74,6 +73,12 @@ func AuthorizeClient(clientId, serviceNodeKey string) error {
 	if err != nil {
 		return err
 	}
+
+	addNodeErr := AddNode()
+	if addNodeErr != nil {
+		log.Println(addNodeErr)
+	}
+
 	return UpdateClientStatus(clientId, StatusOnline)
 }
 
@@ -96,7 +101,7 @@ func UpdateClientStatus(clientId, status string) error {
 		break
 	case StatusOnline:
 		client.Status = status
-		err := NodeOffline()
+		err := NodeOnline()
 		if err != nil {
 			return err
 		}
@@ -124,7 +129,7 @@ func CreateClientIfNotExists(clientId, IP, SNKey string) *Client {
 		if err != nil {
 			return nil
 		}
-		return nil
+		return client
 	}
 
 	return client

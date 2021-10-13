@@ -33,18 +33,6 @@ type (
 		UpdateId         int `json:"updateId" bson:"updateId"`
 	}
 
-	// ServiceNode contains the information of an Oxen Service Node.
-	// This entry is used for storing historical data about the Node.
-	// ClientId is a key connected to the Client.
-	// ServiceNodeKey is a Service Node key.
-	// ServiceNodeStatus is a response from the Client.
-	ServiceNode struct {
-		mgm.DefaultModel  `bson:",inline"`
-		ClientId          string `json:"clientId" bson:"clientId"`
-		ServiceNodeKey    string `json:"serviceNodeKey" bson:"serviceNodeKey"`
-		ServiceNodeStatus string `json:"status" bson:"status"`
-	}
-
 	// Chat is the Chat the Bot is listening to.
 	Chat struct {
 		mgm.DefaultModel `bson:",inline"`
