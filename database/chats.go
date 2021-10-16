@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"github.com/kamva/mgm/v3"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
@@ -24,7 +25,17 @@ func updateChat(chat *Chat) error {
 	return chatCollection.Update(chat)
 }
 
-func AuthorizeChat(chatId int64) error {
+func IsChatAuthorized(chatId string) bool {
+	chat, err := GetChatWithId(chatId)
+	if err != nil {
+		log.Println("Error authenticating the chat:", err)
+		return false
+	}
+
+	return chat.IsAuthorized
+}
+
+func AuthorizeChat(chatId string) error {
 	chat, err := getChat(bson.M{"chatId": chatId})
 	if err != nil {
 		return err
@@ -33,7 +44,7 @@ func AuthorizeChat(chatId int64) error {
 	return updateChat(chat)
 }
 
-func RevokeChatAuthorization(chatId int64) error {
+func RevokeChatAuthorization(chatId string) error {
 	chat, err := getChat(bson.M{"chatId": chatId})
 	if err != nil {
 		return err
@@ -42,7 +53,7 @@ func RevokeChatAuthorization(chatId int64) error {
 	return updateChat(chat)
 }
 
-func GetChatWithId(chatId int64) (*Chat, error) {
+func GetChatWithId(chatId string) (*Chat, error) {
 	return getChat(bson.M{"chatId": chatId})
 }
 
@@ -62,8 +73,8 @@ func getChats(filter interface{}) ([]Chat, error) {
 	return results, nil
 }
 
-func AddChat(chatId int64, name string) error {
-	if chatId < 0 {
+func AddChat(chatId string, name string) error {
+	if chatId == "" {
 		return nil
 	}
 	chat := &Chat{
@@ -75,4 +86,13 @@ func AddChat(chatId int64, name string) error {
 	}
 
 	return mgm.Coll(&Chat{}).Create(chat)
+}
+
+func AddChatIfDoesntExist(chatId string, name string) error {
+	_, err := GetChatWithId(chatId)
+	if err == nil {
+		return fmt.Errorf("chat already exists")
+	}
+
+	return AddChat(chatId, name)
 }

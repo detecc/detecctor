@@ -3,8 +3,7 @@ package server
 import (
 	"container/list"
 	"github.com/Allenxuxu/gev"
-	"github.com/detecc/detecctor/bot"
-	"github.com/detecc/detecctor/shared"
+	"github.com/detecc/detecctor/bot/api"
 	"sync"
 )
 
@@ -25,6 +24,6 @@ type server struct {
 	conn         *list.List
 	mu           sync.RWMutex
 	server       *gev.Server
-	botChannel   chan bot.Command
-	replyChannel chan shared.Reply
+	botChannel   chan api.Command
+	replyChannel chan api.Reply
 }

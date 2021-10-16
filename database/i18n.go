@@ -7,7 +7,7 @@ import (
 )
 
 // GetLanguage for a chat
-func GetLanguage(chatId int64) (string, error) {
+func GetLanguage(chatId string) (string, error) {
 	chat, err := GetChatWithId(chatId)
 	if err != nil {
 		return "", err
@@ -17,7 +17,7 @@ func GetLanguage(chatId int64) (string, error) {
 }
 
 // SetLanguage changes the language preference from a default one.
-func SetLanguage(chatId int64, lang string) error {
+func SetLanguage(chatId string, lang string) error {
 	chat, err := GetChatWithId(chatId)
 	if err != nil {
 		return err

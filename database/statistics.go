@@ -62,7 +62,7 @@ func AddNode() error {
 	return updateStatistics(stats)
 }
 
-func UpdateLastMessageId(lastMessageId int) error {
+func UpdateLastMessageId(lastMessageId string) error {
 	stats, err := GetStatistics()
 	if err != nil {
 		log.Println(err)
@@ -87,7 +87,7 @@ func CreateStatisticsIfNotExists() {
 	statistics := &Statistics{
 		ActiveNodes: 0,
 		TotalNodes:  0,
-		UpdateId:    0,
+		UpdateId:    "0",
 	}
 	if stats, err := GetStatistics(); stats == nil {
 		err := createStatistics(statistics)

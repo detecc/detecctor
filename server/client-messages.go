@@ -3,11 +3,14 @@ package server
 import (
 	"fmt"
 	"github.com/Allenxuxu/gev/connection"
+	"github.com/detecc/detecctor/bot/api"
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/database"
+	"github.com/detecc/detecctor/i18n"
 	"github.com/detecc/detecctor/shared"
 	cache2 "github.com/patrickmn/go-cache"
 	"log"
+	"time"
 )
 
 // sendMessage send a message to a client.
@@ -38,6 +41,20 @@ func (s *server) sendMessage(message shared.Payload) error {
 	return conn.Send([]byte(encodedPayload + "\n"))
 }
 
+func (s *server) sendToClients(chatId string, payloads ...shared.Payload) {
+	if payloads != nil {
+		for _, payload := range payloads {
+			generatePayloadId(&payload, chatId)
+			messageErr := s.sendMessage(payload)
+			if messageErr != nil {
+				log.Println("Could not send message to the client:", messageErr)
+				translationMap := i18n.NewTranslationMap("UnableToSendMessage", i18n.AddData("ServiceNodeKey", payload.ServiceNodeKey), i18n.AddData("Error", messageErr.Error()))
+				s.replyToChat(chatId, translationMap, api.TypeMessage)
+			}
+		}
+	}
+}
+
 // handleMessage Handle a reply from the client
 func (s *server) handleMessage(c *connection.Connection, payload shared.Payload) {
 	clientId, _ := shared.ParseIP(c.PeerAddr())
@@ -48,23 +65,23 @@ func (s *server) handleMessage(c *connection.Connection, payload shared.Payload)
 	case AuthCommand:
 		if isNodeAuthorized {
 			log.Println("Client is already authorized")
-			payload.Error = "already authorized"
-			payload.Success = false
+			payload.SetError(fmt.Errorf("already authorized"))
+
+			//generate a dummy id
+			generatePayloadId(&payload, "0")
+
 			// reply to the client authorization request
 			err := s.sendMessage(payload)
 			if err != nil {
 				log.Println(err)
-				return
 			}
-			//c.ShutdownWrite()
 			return
 		}
 
 		err := s.authorizeClient(clientId, payload)
 		if err != nil {
 			log.Println("Client couldn't be authorized:", err)
-			payload.Error = err.Error()
-			payload.Success = false
+			payload.SetError(err)
 			// s.sendMessage(payload)
 			return
 		}
@@ -72,8 +89,11 @@ func (s *server) handleMessage(c *connection.Connection, payload shared.Payload)
 	default:
 		if !isNodeAuthorized {
 			log.Println("Client is not authorized.")
-			payload.Error = "not authorized"
-			payload.Success = false
+			payload.SetError(fmt.Errorf("not authorized"))
+
+			//generate a dummy id
+			generatePayloadId(&payload, "0")
+
 			err := s.sendMessage(payload)
 			if err != nil {
 				log.Println(err)
@@ -99,7 +119,7 @@ func (s *server) handleMessage(c *connection.Connection, payload shared.Payload)
 			return
 		}
 
-		s.sendToSubscribedChats([]int64{chatId.(int64)}, &payload)
+		s.sendToSubscribedChats([]string{chatId.(string)}, &payload)
 		break
 	}
 }
@@ -124,4 +144,20 @@ func (s *server) storeClient(conn *connection.Connection) {
 		conn.ShutdownWrite()
 		return
 	}
+}
+
+// generatePayloadId Generates a UUID for an outbound Payload to map the response to the ChatId
+func generatePayloadId(payload *shared.Payload, chatId string) {
+	//create a unique id for every server message
+	uuid := shared.Uuid()
+	log.Println("UUID:", uuid)
+	if uuid == "" {
+		// bad
+		log.Println("uuid is empty")
+		return
+	}
+
+	payload.Id = uuid
+	//set the payload ID to chatId mapping
+	cache.Memory().Set(uuid, chatId, time.Minute*5)
 }
