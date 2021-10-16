@@ -20,7 +20,7 @@ func GetSubscribedChats(nodeId, command string) ([]Chat, error) {
 	)
 }
 
-func SubscribeToAll(chatId int64) error {
+func SubscribeToAll(chatId string) error {
 	chat, err := GetChatWithId(chatId)
 	if err != nil {
 		return err
@@ -37,7 +37,7 @@ func SubscribeToAll(chatId int64) error {
 	return updateChat(chat)
 }
 
-func SubscribeTo(chatId int64, nodes []string, commands []string) error {
+func SubscribeTo(chatId string, nodes []string, commands []string) error {
 	chat, err := GetChatWithId(chatId)
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func createSubscriptions(nodes []string, commands []string) []Subscription {
 	return subscriptions
 }
 
-func UnSubscribeFromAll(chatId int64) error {
+func UnSubscribeFromAll(chatId string) error {
 	chat, err := GetChatWithId(chatId)
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func UnSubscribeFromAll(chatId int64) error {
 	return updateChat(chat)
 }
 
-func UnSubscribeFrom(chatId int64, nodes []string, commands []string) error {
+func UnSubscribeFrom(chatId string, nodes []string, commands []string) error {
 	chat, err := GetChatWithId(chatId)
 	if err != nil {
 		return err
