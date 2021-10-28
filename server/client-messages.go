@@ -1,50 +1,99 @@
 package server
 
 import (
+	"fmt"
 	"github.com/Allenxuxu/gev/connection"
+	"github.com/detecc/detecctor/bot/api"
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/database"
-	"github.com/detecc/detecctor/plugin"
+	"github.com/detecc/detecctor/i18n"
 	"github.com/detecc/detecctor/shared"
+	cache2 "github.com/patrickmn/go-cache"
 	"log"
+	"time"
 )
+
+// sendMessage send a message to a client.
+func (s *server) sendMessage(message shared.Payload) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if message.ServiceNodeKey == "" {
+		return fmt.Errorf("ServiceNodeKey is not set")
+	}
+
+	if message.Id == "" {
+		return fmt.Errorf("payload id not set")
+	}
+
+	// find the target client for the message
+	conn, err := s.getConnection(message.ServiceNodeKey)
+	if err != nil {
+		return err
+	}
+
+	encodedPayload, err := shared.EncodePayload(&message)
+	if err != nil {
+		return err
+	}
+
+	log.Println("Sending a message to a service node", message.ServiceNodeKey)
+	return conn.Send([]byte(encodedPayload + "\n"))
+}
+
+func (s *server) sendToClients(chatId string, payloads ...shared.Payload) {
+	if payloads != nil {
+		for _, payload := range payloads {
+			generatePayloadId(&payload, chatId)
+			messageErr := s.sendMessage(payload)
+			if messageErr != nil {
+				log.Println("Could not send message to the client:", messageErr)
+				translationMap := i18n.NewTranslationMap("UnableToSendMessage", i18n.AddData("ServiceNodeKey", payload.ServiceNodeKey), i18n.AddData("Error", messageErr.Error()))
+				s.replyToChat(chatId, translationMap, api.TypeMessage)
+			}
+		}
+	}
+}
 
 // handleMessage Handle a reply from the client
 func (s *server) handleMessage(c *connection.Connection, payload shared.Payload) {
 	clientId, _ := shared.ParseIP(c.PeerAddr())
 	isNodeAuthorized := database.IsClientAuthorized(clientId)
-	log.Println("handling message from", clientId)
+	log.Println("Handling message from", clientId)
 
 	switch payload.Command {
-	case "/auth":
+	case AuthCommand:
 		if isNodeAuthorized {
-			log.Println("client is already authorized")
-			payload.Error = "already authorized"
-			payload.Success = false
+			log.Println("Client is already authorized")
+			payload.SetError(fmt.Errorf("already authorized"))
+
+			//generate a dummy id
+			generatePayloadId(&payload, "0")
+
 			// reply to the client authorization request
 			err := s.sendMessage(payload)
 			if err != nil {
 				log.Println(err)
-				return
 			}
-			//c.ShutdownWrite()
 			return
 		}
 
 		err := s.authorizeClient(clientId, payload)
 		if err != nil {
-			log.Println("client couldn't be authorized:", err)
-			payload.Error = err.Error()
-			payload.Success = false
+			log.Println("Client couldn't be authorized:", err)
+			payload.SetError(err)
 			// s.sendMessage(payload)
 			return
 		}
 		break
 	default:
 		if !isNodeAuthorized {
-			log.Println("client is not authorized")
-			payload.Error = "not authorized"
-			payload.Success = false
+			log.Println("Client is not authorized.")
+			payload.SetError(fmt.Errorf("not authorized"))
+
+			//generate a dummy id
+			generatePayloadId(&payload, "0")
+
 			err := s.sendMessage(payload)
 			if err != nil {
 				log.Println(err)
@@ -54,30 +103,23 @@ func (s *server) handleMessage(c *connection.Connection, payload shared.Payload)
 			return
 		}
 
+		// if the payload id is empty, forward to all subscribed chats
+		if payload.Id == "" {
+			chatIds := s.getSubscribedChats(payload.ServiceNodeKey, payload.Command)
+			if chatIds != nil {
+				s.sendToSubscribedChats(chatIds, &payload)
+			}
+			return
+		}
+
+		// payloadId that is not empty usually means responding to a request from the user/chat
 		chatId, isFound := cache.Memory().Get(payload.Id)
-		if !isFound {
-			// oopsie
+		if !isFound && payload.Id != "" {
 			log.Print("chatId not found for payload id", payload.Id)
 			return
 		}
 
-		// send a notification to the user about the failure
-		if payload.Success == false {
-			database.NewCommandResponse(payload.Id, nil, payload.Error)
-			s.replyToChat(chatId.(int64), payload.Error, shared.TypeMessage)
-			return
-		}
-
-		mPlugin, err := plugin.GetPluginManager().GetPlugin(payload.Command)
-		if err != nil {
-			database.NewCommandResponse(payload.Id, nil, err, payload.Error)
-			log.Println("Plugin doesnt exist")
-			return
-		}
-		// send the response to the Telegram Bot
-		pluginResponse := mPlugin.Response(payload)
-		database.NewCommandResponse(payload.Id, pluginResponse.Content, err, payload.Error)
-		s.replyChannel <- pluginResponse
+		s.sendToSubscribedChats([]string{chatId.(string)}, &payload)
 		break
 	}
 }

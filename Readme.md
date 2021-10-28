@@ -1,19 +1,25 @@
 # Detecctor
 
-Detecctor is a :zap: fast, fully customizable :heartpulse: monitoring platform. It uses **Telegram** as a notification
-:inbox_tray: service. The main components are a TCP server, MongoDB and multiple clients.
+Detecctor is a ⚡fast, fully customizable 🖥️ monitoring platform. It uses various 🤖 chatbots as a 📲 notification
+service. It is designed for use with 🔌 plugins, which enable total control over the functionality of both server and
+the client. All you do is issue a command and let the 🔌 plugin deal with the rest. You can include provided plugins,
+write your own or include plugins from the community.
 
-Detecctor is designed with plugins :electric_plug:, which enable total control over the functionality of both server and
-the client. All you do is issue a command and let the :electric_plug: plugin deal with the rest. You can include
-provided plugins, write your own or include plugins from the community.
-
-## Configuration
+## 🔧 Configuration
 
 Before running the server, check out the [configuration guide](/docs/configuration.md).
 
-## Running the server
+## 🤖 Supported bots
 
-### Using Docker or docker-compose
+| Chat service | Supported     |
+|    :----:   |    :----:     |
+| Telegram       | ✔️   |
+| Slack        | Planned      |
+| Discord       | Planned      |
+
+## 🏃 Running the server
+
+### Using 🐳 Docker or docker-compose
 
 The provided _docker-compose_ file will run both the MongoDB and the server.
 

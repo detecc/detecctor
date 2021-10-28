@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"github.com/Allenxuxu/gev"
 	"github.com/Allenxuxu/gev/connection"
-	"github.com/detecc/detecctor/bot"
+	"github.com/detecc/detecctor/bot/api"
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/config"
 	"github.com/detecc/detecctor/database"
-	plugin2 "github.com/detecc/detecctor/plugin"
+	"github.com/detecc/detecctor/i18n"
+	plugin2 "github.com/detecc/detecctor/server/plugin"
 	"github.com/detecc/detecctor/shared"
 	cache2 "github.com/patrickmn/go-cache"
 	"log"
@@ -17,10 +18,14 @@ import (
 	"time"
 )
 
+var srv *server
+var once = sync.Once{}
+
 // Start a new TCP/WS server.
-func Start(botChannel chan bot.Command, replyChannel chan shared.Reply) error {
-	serverConfig := config.GetServerConfiguration()
+func Start(botChannel chan api.Command, replyChannel chan api.Reply) error {
 	var err error
+	serverConfig := config.GetServerConfiguration()
+
 	if botChannel == nil {
 		return fmt.Errorf("bot channel is nil")
 	}
@@ -28,22 +33,24 @@ func Start(botChannel chan bot.Command, replyChannel chan shared.Reply) error {
 		return fmt.Errorf("reply channel is nil")
 	}
 
-	srv := &server{
-		conn:         list.New(),
-		mu:           sync.RWMutex{},
-		botChannel:   botChannel,
-		replyChannel: replyChannel,
-	}
+	once.Do(func() {
+		srv = &server{
+			conn:         list.New(),
+			mu:           sync.RWMutex{},
+			botChannel:   botChannel,
+			replyChannel: replyChannel,
+		}
 
-	address := fmt.Sprintf("%s:%d", serverConfig.Server.Host, serverConfig.Server.Port)
-	srv.server, err = gev.NewServer(srv, gev.Address(address))
-	if err != nil {
-		return err
-	}
+		address := fmt.Sprintf("%s:%d", serverConfig.Server.Host, serverConfig.Server.Port)
+		srv.server, err = gev.NewServer(srv, gev.Address(address))
+		if err != nil {
+			log.Fatal(err)
+		}
+		plugin2.GetPluginManager().LoadPlugins()
 
-	plugin2.GetPluginManager().LoadPlugins()
+		srv.start()
+	})
 
-	srv.start()
 	return nil
 }
 
@@ -61,7 +68,7 @@ func (s *server) stop() {
 // ListenForCommands listen for incoming bot commands
 func (s *server) listenForCommands() {
 	for command := range s.botChannel {
-		log.Println("received command:", command)
+		log.Println("Received command:", command)
 		go s.handleCommand(command)
 	}
 }
@@ -105,120 +112,25 @@ func (s *server) OnClose(c *connection.Connection) {
 	s.mu.Unlock()
 
 	if err == nil {
-		chats, err := database.GetChats()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		//notify the user(s) the node went down
-		notificationMessage := fmt.Sprintf("Client %s went down at %s", client.ServiceNodeKey, time.Now().Format(time.RFC1123))
-		log.Println(notificationMessage)
-		for _, chat := range chats {
-			s.replyToChat(chat.ChatId, notificationMessage, shared.TypeMessage)
-		}
+		s.notifyClientDisconnect(client.ServiceNodeKey)
 	}
 }
 
-func (s *server) validateCommand(command bot.Command) error {
-	if !s.isChatAuthorized(command.ChatId) && command.Name != "/auth" {
-		return fmt.Errorf("chat is not authorized")
-	}
-
-	// @todo add logic that validates parameters...
-
-	return nil
-}
-
-// handleCommand handles the invocation of the Plugin.Execute method and sends the payloads produced to the designated clients.
-func (s *server) handleCommand(command bot.Command) {
-	cmdErr := s.validateCommand(command)
-	if cmdErr != nil {
-		s.replyToChat(command.ChatId, "You are not authorized to send this command", shared.TypeMessage)
+// notifyClientDisconnect notifies all the chats that a node/client went down.
+func (s *server) notifyClientDisconnect(serviceNodeKey string) {
+	chats, err := database.GetChats()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
-	switch command.Name {
-	case "/auth":
-		var token = ""
-
-		if len(command.Args) >= 1 {
-			token = command.Args[0]
-		}
-		message := s.authChat(token, command.ChatId)
-		s.replyToChat(command.ChatId, message, shared.TypeMessage)
-		break
-	default:
-		//check if the plugin is exists
-		plugin, err := plugin2.GetPluginManager().GetPlugin(command.Name)
-		if err != nil {
-			log.Println("Plugin with command", command.Name, "doesnt exist")
-			database.NewCommandLog(command.ChatId, command.Name, command.Args, nil, err.Error())
-			s.replyToChat(command.ChatId, fmt.Sprintf("%s unsupported command", command.Name), shared.TypeMessage)
-			return
-		}
-
-		// invoke the Plugin.Execute method
-		payloads, err := plugin.Execute(command.Args...)
-		if err != nil {
-			log.Println("plugin produced an error:", err)
-			database.NewCommandLog(command.ChatId, command.Name, command.Args, payloads, err.Error())
-			return
-		}
-
-		database.NewCommandLog(command.ChatId, command.Name, command.Args, payloads)
-		// send the payloads to the clients
-		for i, payload := range payloads {
-			generatePayloadId(&payload, command.ChatId)
-			log.Println(i, payload)
-			messageErr := s.sendMessage(payload)
-			if messageErr != nil {
-				couldNotSendMessage := fmt.Sprintf("could  not send message to %s: %v", payload.ServiceNodeKey, messageErr)
-				log.Println(couldNotSendMessage)
-				s.replyToChat(command.ChatId, couldNotSendMessage, shared.TypeMessage)
-			}
-		}
-		break
+	notificationMessage := fmt.Sprintf("Client %s went offline at %s", serviceNodeKey, time.Now().Format(time.RFC1123))
+	log.Println(notificationMessage)
+	message := i18n.NewTranslationMap("ClientDisconnected", i18n.AddData("ServiceNodeKey", serviceNodeKey), i18n.AddData("Time", time.Now().Format(time.RFC1123)))
+	//notify the user(s) the node went down
+	for _, chat := range chats {
+		s.replyToChat(chat.ChatId, message, api.TypeMessage)
 	}
-}
-
-func (s *server) replyToChat(chatId int64, content interface{}, contentType int) {
-	if contentType < 0 {
-		contentType = shared.TypeMessage
-	}
-
-	s.replyChannel <- shared.Reply{
-		ChatId:    chatId,
-		ReplyType: contentType,
-		Content:   content,
-	}
-}
-
-// sendMessage send a message to a client.
-func (s *server) sendMessage(message shared.Payload) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if message.ServiceNodeKey == "" {
-		return fmt.Errorf("ServiceNodeKey is not set")
-	}
-
-	if message.Id == "" {
-		return fmt.Errorf("payload id not set")
-	}
-
-	// find the target client for the message
-	conn, err := s.getConnection(message.ServiceNodeKey)
-	if err != nil {
-		return err
-	}
-
-	encodedPayload, err := shared.EncodePayload(&message)
-	if err != nil {
-		return err
-	}
-
-	log.Println("Sending a message to a service node", message.ServiceNodeKey)
-	return conn.Send([]byte(encodedPayload + "\n"))
 }
 
 // getConnection returns a connection pointer stored in memory based on clientId
@@ -227,31 +139,11 @@ func (s *server) getConnection(serviceNodeKey string) (*connection.Connection, e
 	if err != nil {
 		return nil, err
 	}
+
 	conn, ok := cache.Memory().Get(client.ClientId)
 	if !ok {
 		return nil, fmt.Errorf("Could not find a connected client with Service Node Key: %s ", serviceNodeKey)
 	}
+
 	return conn.(*connection.Connection), nil
-}
-
-// storeClient Remember a client connection for status updates
-func (s *server) storeClient(conn *connection.Connection) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	e := s.conn.PushBack(conn)
-	conn.SetContext(e)
-
-	clientId, _ := shared.ParseIP(conn.PeerAddr())
-	cache.Memory().Set(clientId, conn, cache2.NoExpiration)
-
-	// Check if the client already exists in the database
-	log.Println("Adding the client to the database:", clientId)
-	database.CreateIfNotExists(clientId, conn.PeerAddr(), "")
-
-	err := database.UpdateClientStatus(clientId, database.StatusUnauthorized)
-	if err != nil {
-		log.Println("Cannot update the client status")
-		conn.ShutdownWrite()
-		return
-	}
 }

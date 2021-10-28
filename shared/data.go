@@ -2,63 +2,28 @@ package shared
 
 import (
 	"crypto/rand"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 )
 
-const (
-	TypeMessage = 0
-	TypePhoto   = 1
-	TypeAudio   = 2
+type (
+	// Payload is used to transfer data and determine the status, target client and plugin.
+	Payload struct {
+		// Id is used to uniquely identify the request to the response.
+		Id string
+		// ServiceNodeKey is used to determine the target client for the data.
+		ServiceNodeKey string
+		Data           interface{}
+		Command        string
+		Success        bool
+		Error          string
+	}
+
+	PayloadOption func(*Payload)
 )
 
-// Reply is a struct used to parse results to the ReplyChannel in Telegram.
-// Each reply must contain a ChatId - a chat to reply to.
-// The ReplyType must be a constant defined in the package.
-// Content must be cast after determining the type to send to Telegram.
-type Reply struct {
-	ChatId    int64
-	ReplyType int
-	Content   interface{}
-}
-
-type Payload struct {
-	Id             string
-	ServiceNodeKey string
-	Data           interface{}
-	Command        string
-	Success        bool
-	Error          string
-}
-
-func EncodePayload(payload *Payload) (string, error) {
-
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-
-	b64Payload := base64.StdEncoding.EncodeToString(data)
-
-	return b64Payload, nil
-}
-
-func DecodePayload(data []byte, payload *Payload) error {
-	jsonData, err := base64.StdEncoding.DecodeString(string(data))
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(jsonData, payload)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Uuid creates unique identifier
+// Uuid creates unique identifier.
 func Uuid() string {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
@@ -72,7 +37,7 @@ func Uuid() string {
 	return uuid
 }
 
-// ParseIP separates the IP and Port of the address
+// ParseIP separates the IP and Port of the address.
 func ParseIP(addr string) (string, string) {
 	ip, port, err := net.SplitHostPort(addr)
 	if err != nil {

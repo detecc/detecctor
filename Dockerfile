@@ -1,10 +1,10 @@
-FROM golang:latest as base
+FROM golang:1.17 as base
 WORKDIR /detecctor/src
 COPY . .
 RUN mkdir "/detecctor/plugins"
 
 FROM base as dev
-ENTRYPOINT ["go run ."]
+ENTRYPOINT ["go","run","."]
 
 FROM base as run
 

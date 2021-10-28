@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/detecc/detecctor/config"
 	"log"
+	"os"
+	"path/filepath"
 	"plugin"
 	"sync"
 )
@@ -64,11 +66,20 @@ func (pm *PluginManager) LoadPlugins() {
 	server := config.GetServerConfiguration().Server
 
 	for _, pluginFromList := range server.Plugins {
-		log.Println("Loading plugin:", pluginFromList)
-		_, err := plugin.Open(fmt.Sprintf("%s/%s.so", server.PluginDir, pluginFromList))
+
+		err := filepath.Walk(server.PluginDir, func(path string, info os.FileInfo, err error) error {
+			// if the name matches, try to load the plugin
+			if !info.IsDir() && info.Name() == pluginFromList+".so" {
+				log.Println("Loading plugin:", pluginFromList)
+				_, err = plugin.Open(path)
+				return err
+			}
+
+			return nil
+		})
+
 		if err != nil {
-			log.Println("error loading plugin", err)
-			continue
+			log.Println("error loading plugin from list:", err)
 		}
 	}
 }
