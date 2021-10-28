@@ -12,7 +12,6 @@ import (
 	"github.com/detecc/detecctor/i18n"
 	plugin2 "github.com/detecc/detecctor/server/plugin"
 	"github.com/detecc/detecctor/shared"
-	cache2 "github.com/patrickmn/go-cache"
 	"log"
 	"sync"
 	"time"

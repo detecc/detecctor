@@ -8,6 +8,7 @@ import (
 	"github.com/detecc/detecctor/i18n"
 	"github.com/detecc/detecctor/server/middleware"
 	plugin2 "github.com/detecc/detecctor/server/plugin"
+	"github.com/detecc/detecctor/shared"
 	"log"
 	"strings"
 )
@@ -98,6 +99,13 @@ func (s *server) executeCommand(command api.Command) {
 
 	// invoke the Plugin.Execute method
 	payloads, err := plugin.Execute(command.Args...)
+
+	defer func(command api.Command, payloads []shared.Payload, errs ...interface{}) {
+		_, err := database.NewCommandLog(command, payloads, errs)
+		if err != nil {
+			log.Println(err)
+		}
+	}(command, payloads, err.Error(), middlewareErr)
 
 	if middlewareErr != nil || err != nil {
 		var errorOpt i18n.TranslationOptions
