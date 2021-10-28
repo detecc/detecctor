@@ -2,9 +2,10 @@ package bot
 
 import (
 	"fmt"
+	. "github.com/detecc/detecctor/bot/api"
 	"github.com/detecc/detecctor/database"
-	"github.com/detecc/detecctor/shared"
 	"log"
+	"strings"
 )
 
 // Start the bot and listening for messages from the TCP server and the bot.
@@ -18,7 +19,7 @@ func (proxy *Proxy) GetCommandsChannel() chan Command {
 	return proxy.CommandsChannel
 }
 
-func (proxy *Proxy) GetReplyChannel() chan shared.Reply {
+func (proxy *Proxy) GetReplyChannel() chan Reply {
 	return proxy.ReplyChannel
 }
 
@@ -33,59 +34,60 @@ func (proxy *Proxy) listenForMessages() {
 			proxy.bot.ReplyToChat(replyMessage)
 			break
 		case message := <-proxy.bot.GetMessageChannel():
-			if message != nil {
-				// ignore any non-Message Updates
-				proxy.processMessage(
-					message["chatId"].(int64),
-					message["messageId"].(int),
-					message["username"].(string),
-					message["message"].(string),
-				)
-			}
+			// ignore any non-Message Updates
+			proxy.processMessage(message)
 			break
 		}
 	}
-
 }
 
 // processMessage processes a message. Adds the necessary information to the database and sends the command to the TCP server.
 // If an error occurs during processing, the proxy will notify the bot.
-func (proxy *Proxy) processMessage(chatId int64, messageId int, userName, message string) {
+func (proxy *Proxy) processMessage(message ProxyMessage) {
 	log.Println("Processing a message")
-	_, err := database.GetChatWithId(chatId)
+
+	err := database.AddChatIfDoesntExist(message.ChatId, message.Username)
 	if err != nil {
-		err := database.AddChat(chatId, userName)
-		if err != nil {
-			log.Println("Error adding a chat:", err)
-			return
-		}
+		log.Println("Error adding a chat:", err)
 	}
 
 	// add a new message to database
-	_, err = database.NewMessage(int(chatId), messageId, message)
+	_, err = database.NewMessage(message.ChatId, message.MessageId, message.Message)
 	if err != nil {
 		log.Println("Error adding a message:", err)
 		return
 	}
 
 	//update last message id
-	err = database.UpdateLastMessageId(messageId)
+	err = database.UpdateLastMessageId(message.MessageId)
 	if err != nil {
 		log.Println("Error updating the lastMessageId:", err)
 		return
 	}
 
-	command, err := parseCommand(message, chatId)
+	command, err := parseCommand(message.Message, message.ChatId)
 	if err != nil {
 		log.Println("Error parsing the message:", err)
 		//if the command is invalid, notify the user through telegram
-		proxy.ReplyChannel <- shared.Reply{
-			ChatId:    chatId,
-			ReplyType: shared.TypeMessage,
-			Content:   fmt.Sprintf("%s is not a command", message),
-		}
+		proxy.ReplyChannel <- NewReplyBuilder().TypeMessage().ForChat(message.ChatId).WithContent(fmt.Sprintf("%s is not a command", message)).Build()
 		return
 	}
 
 	proxy.CommandsChannel <- command
+}
+
+// parseCommand parses the text as a command, where the command is structured as /command arg1 arg2 arg3.
+// returns a Command struct containing the name of the command and the arguments provided : ["/command", "arg1", "arg2", "arg3"]
+func parseCommand(text string, chatId string) (Command, error) {
+	if !strings.HasPrefix(text, "/") {
+		return Command{}, fmt.Errorf("not a command: %s", text)
+	}
+	args := strings.Split(text, " ")
+	cmdBuilder := NewCommandBuilder()
+
+	if len(args) == 1 {
+		return cmdBuilder.WithName(args[0]).FromChat(chatId).Build(), nil
+	}
+
+	return cmdBuilder.WithName(args[0]).WithArgs(args[1:]).FromChat(chatId).Build(), nil
 }

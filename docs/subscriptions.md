@@ -1,16 +1,14 @@
 # Subscribe and unsubscribe feature
 
-## Concept
-
 Subscriptions on **Detecctor** are similar to the pub-sub architecture, well, sort of. The basic idea is to subscribe to
-messages, sent by the client without prior request (scheduled monitoring events).
+any messages sent by the client without prior request (scheduled monitoring events).
 
-## Command structure
+## The `/sub` command structure
 
 The first command is the `/sub` or `/subscribe` command. The subscribe command is structured as:
 
 ```text
-/sub nodes=exampleNode1,exampleNode2 commands=/auth,/get_status notifyInterval=1
+/sub nodes=exampleNode1,exampleNode2 commands=/auth,get_status notifyInterval=1
 ```
 
 The order of the arguments is insignificant, since they are **key-value** arguments. The `commands` key specifies the

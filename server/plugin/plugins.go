@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"github.com/detecc/detecctor/bot/api"
 	"github.com/detecc/detecctor/shared"
 )
 
@@ -15,7 +16,7 @@ type (
 
 		// Response is called when the clients have responded and should
 		// return a string to send as a reply to the bot
-		Response(payload shared.Payload) shared.Reply
+		Response(payload shared.Payload) api.Reply
 
 		// Execute method is called when the bot command matches GetCmdName's result.
 		// The bot passes the string arguments to the method.

@@ -28,15 +28,15 @@ type (
 	// UpdateId is a number of the last known Bot Message ID.
 	Statistics struct {
 		mgm.DefaultModel `bson:",inline"`
-		ActiveNodes      int `json:"activeNodes" bson:"activeNodes"`
-		TotalNodes       int `json:"totalNodes" bson:"totalNodes"`
-		UpdateId         int `json:"updateId" bson:"updateId"`
+		ActiveNodes      int    `json:"activeNodes" bson:"activeNodes"`
+		TotalNodes       int    `json:"totalNodes" bson:"totalNodes"`
+		UpdateId         string `json:"updateId" bson:"updateId"`
 	}
 
 	// Chat is the Chat the Bot is listening to.
 	Chat struct {
 		mgm.DefaultModel `bson:",inline"`
-		ChatId           int64          `json:"chatId" bson:"chatId"`
+		ChatId           string         `json:"chatId" bson:"chatId"`
 		Name             string         `json:"name" bson:"name"`
 		IsAuthorized     bool           `json:"isAuthorized" bson:"isAuthorized"`
 		Language         string         `json:"lang" bson:"lang"`
@@ -55,8 +55,8 @@ type (
 	// Message is a Message that gets logged in the database.
 	Message struct {
 		mgm.DefaultModel `bson:",inline"`
-		ChatId           int    `json:"chatId" bson:"chatId"`
-		MessageId        int    `json:"messageId" bson:"messageId"`
+		ChatId           string `json:"chatId" bson:"chatId"`
+		MessageId        string `json:"messageId" bson:"messageId"`
 		Content          string `json:"content" bson:"content"`
 	}
 )

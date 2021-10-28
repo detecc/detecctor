@@ -57,11 +57,11 @@ func GetMessagesFromChat(chatId string) ([]Message, error) {
 	return results, nil
 }
 
-func GetMessageWithId(messageId int) (*Message, error) {
+func GetMessageWithId(messageId string) (*Message, error) {
 	return getMessage(bson.M{"messageId": messageId})
 }
 
-func NewMessage(chatId int, messageId int, content string) (*Message, error) {
+func NewMessage(chatId string, messageId string, content string) (*Message, error) {
 	message := &Message{
 		ChatId:    chatId,
 		Content:   content,

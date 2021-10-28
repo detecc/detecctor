@@ -8,13 +8,11 @@ server, are:
 1. server host
 2. authPassword
 3. pluginDir
-4. botToken
+4. bot token and bot type
 5. database username
 6. database password
 
-The configuration file formats supported are **YAML, JSON and TOML**.
-
-Example `config` file in `yaml` format:
+The configuration file formats supported are **YAML, JSON and TOML**. An example `config` file in the`yaml` format:
 
 ```yaml
 server:
@@ -25,8 +23,10 @@ server:
   plugins:
     - "examplePlugin1"
     - "examplePlugin2"
-telegram:
-  botToken: "yourTelegramApiToken"
+bot:
+  token: "yourToken"
+  id: "botId"
+  type: "telegram" # or discord, slack, etc.
 mongodb:
   host: localhost
   port: 27017
@@ -34,6 +34,14 @@ mongodb:
   username: "admin"
   password: "admin"
 ```
+
+### Possible Bot Type values
+
+| Chat service | Type     |
+|    :----:   |    :----:     |
+| Telegram       | `"telegram"`️   |
+| Slack        |   `"slack"`    |
+| Discord       | `"discord"`       |
 
 ## Flags
 

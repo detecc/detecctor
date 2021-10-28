@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"github.com/Allenxuxu/gev"
 	"github.com/Allenxuxu/gev/connection"
-	"github.com/detecc/detecctor/bot"
+	"github.com/detecc/detecctor/bot/api"
 	"github.com/detecc/detecctor/cache"
 	"github.com/detecc/detecctor/config"
 	"github.com/detecc/detecctor/database"
+	"github.com/detecc/detecctor/i18n"
 	plugin2 "github.com/detecc/detecctor/server/plugin"
 	"github.com/detecc/detecctor/shared"
 	"log"
@@ -20,7 +21,7 @@ var srv *server
 var once = sync.Once{}
 
 // Start a new TCP/WS server.
-func Start(botChannel chan bot.Command, replyChannel chan shared.Reply) error {
+func Start(botChannel chan api.Command, replyChannel chan api.Reply) error {
 	var err error
 	serverConfig := config.GetServerConfiguration()
 
@@ -44,11 +45,11 @@ func Start(botChannel chan bot.Command, replyChannel chan shared.Reply) error {
 		if err != nil {
 			log.Fatal(err)
 		}
+		plugin2.GetPluginManager().LoadPlugins()
+
+		srv.start()
 	})
 
-	plugin2.GetPluginManager().LoadPlugins()
-
-	srv.start()
 	return nil
 }
 
@@ -110,34 +111,26 @@ func (s *server) OnClose(c *connection.Connection) {
 	s.mu.Unlock()
 
 	if err == nil {
-		chats, err := database.GetChats()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		notificationMessage := fmt.Sprintf("Client %s went offline at %s", client.ServiceNodeKey, time.Now().Format(time.RFC1123))
-		log.Println(notificationMessage)
-
-		data := make(map[string]interface{})
-		data["ServiceNodeKey"] = client.ServiceNodeKey
-		data["Time"] = time.Now().Format(time.RFC1123)
-		message := MakeTranslationMap("ClientDisconnected", nil, data)
-
-		//notify the user(s) the node went down
-		for _, chat := range chats {
-			s.replyToChat(chat.ChatId, message, shared.TypeMessage)
-		}
+		s.notifyClientDisconnect(client.ServiceNodeKey)
 	}
 }
 
-// validateCommand check if the chat is authorized to perform a command.
-func (s *server) validateCommand(command bot.Command) error {
-	if !s.isChatAuthorized(command.ChatId) && command.Name != "/auth" {
-		return fmt.Errorf("chat is not authorized")
+// notifyClientDisconnect notifies all the chats that a node/client went down.
+func (s *server) notifyClientDisconnect(serviceNodeKey string) {
+	chats, err := database.GetChats()
+	if err != nil {
+		log.Println(err)
+		return
 	}
 
-	return nil
+	notificationMessage := fmt.Sprintf("Client %s went offline at %s", serviceNodeKey, time.Now().Format(time.RFC1123))
+	log.Println(notificationMessage)
+
+	message := i18n.NewTranslationMap("ClientDisconnected", i18n.AddData("ServiceNodeKey", serviceNodeKey), i18n.AddData("Time", time.Now().Format(time.RFC1123)))
+	//notify the user(s) the node went down
+	for _, chat := range chats {
+		s.replyToChat(chat.ChatId, message, api.TypeMessage)
+	}
 }
 
 // getConnection returns a connection pointer stored in memory based on clientId
@@ -146,9 +139,11 @@ func (s *server) getConnection(serviceNodeKey string) (*connection.Connection, e
 	if err != nil {
 		return nil, err
 	}
+
 	conn, ok := cache.Memory().Get(client.ClientId)
 	if !ok {
 		return nil, fmt.Errorf("Could not find a connected client with Service Node Key: %s ", serviceNodeKey)
 	}
+
 	return conn.(*connection.Connection), nil
 }
