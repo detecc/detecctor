@@ -12,6 +12,7 @@ import (
 	"github.com/detecc/detecctor/i18n"
 	plugin2 "github.com/detecc/detecctor/server/plugin"
 	"github.com/detecc/detecctor/shared"
+	cache2 "github.com/patrickmn/go-cache"
 	"log"
 	"sync"
 	"time"
@@ -125,7 +126,6 @@ func (s *server) notifyClientDisconnect(serviceNodeKey string) {
 
 	notificationMessage := fmt.Sprintf("Client %s went offline at %s", serviceNodeKey, time.Now().Format(time.RFC1123))
 	log.Println(notificationMessage)
-
 	message := i18n.NewTranslationMap("ClientDisconnected", i18n.AddData("ServiceNodeKey", serviceNodeKey), i18n.AddData("Time", time.Now().Format(time.RFC1123)))
 	//notify the user(s) the node went down
 	for _, chat := range chats {

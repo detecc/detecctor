@@ -1,6 +1,7 @@
 package database
 
 import (
+	"github.com/detecc/detecctor/shared"
 	"github.com/kamva/mgm/v3"
 	"time"
 )
@@ -43,6 +44,29 @@ type (
 		Subscriptions    []Subscription `json:"subscriptions" bson:"subscriptions"`
 	}
 
+// CommandLog contains information about a Command that was issued to the server, processing of the command
+// and the payloads produced by the plugin as well as any errors that occurred.
+ CommandLog struct {
+	mgm.DefaultModel `bson:",inline"`
+	Command          Command          `json:"command" bson:"command"`
+	Errors           []interface{}    `json:"errors" bson:"errors"`
+	PluginPayloads   []shared.Payload `json:"payloads" bson:"payloads"`
+}
+
+// CommandResponseLog contains the client's response to a specific command and payload.
+ CommandResponseLog struct {
+	mgm.DefaultModel `bson:",inline"`
+	PayloadId        string        `json:"payloadId" bson:"payloadId"`
+	Errors           []interface{} `json:"errors" bson:"errors"`
+	PluginResponse   interface{}   `json:"pluginResponse" bson:"pluginResponse"`
+}
+
+ Command struct {
+	ChatId int64
+	Name   string
+	Args   []string
+}
+
 	// Subscription is a filter used for subscribing to a client messages.
 	// If the chat/user is subscribed to all nodes and all topics, there should only be one entry with both subNode and subCommand values equal to "*".
 	// Else, there are separate entries with values, "*" meaning all.
@@ -60,3 +84,11 @@ type (
 		Content          string `json:"content" bson:"content"`
 	}
 )
+
+func (c *CommandLog) CollectionName() string {
+	return "command_logs"
+}
+
+func (c *CommandResponseLog) CollectionName() string {
+	return "command_logs"
+}
